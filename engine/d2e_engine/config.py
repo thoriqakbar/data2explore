@@ -8,6 +8,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "zscore_threshold": 3.0,
     "missing_warning_threshold": 0.20,
     "missing_critical_threshold": 0.50,
+    "range_rules": [],
 }
 
 

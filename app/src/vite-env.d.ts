@@ -10,6 +10,7 @@ interface RunEnginePayload {
   mapping?: string;
   checks?: string;
   data?: string;
+  config?: string;
 }
 
 interface EngineResponse {
@@ -25,5 +26,6 @@ interface Window {
     selectFile: () => Promise<string | null>;
     saveFile: (defaultName?: string) => Promise<string | null>;
     writeTempMapping: (mapping: Record<string, string>) => Promise<string>;
+    writeTempConfig: (config: Record<string, unknown>) => Promise<string>;
   };
 }

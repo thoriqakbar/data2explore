@@ -1,12 +1,13 @@
 import { useState, useCallback } from "react";
-import type { MappingConfig, ProfileOutput, SummaryOutput, CheckOutput } from "../../shared/index";
+import type { MappingConfig, ProfileOutput, SummaryOutput, CheckOutput, RangeRule } from "../../shared/index";
 import { Stepper } from "./components/Stepper";
 import { ImportStep } from "./components/ImportStep";
 import { MappingStep } from "./components/MappingStep";
+import { RulesStep } from "./components/RulesStep";
 import { RunningStep } from "./components/RunningStep";
 import { ResultsStep } from "./components/ResultsStep";
 
-type Step = "import" | "mapping" | "running" | "results";
+type Step = "import" | "mapping" | "rules" | "running" | "results";
 
 const MAPPING_FIELDS: (keyof MappingConfig)[] = [
   "id",
@@ -32,6 +33,7 @@ export function App() {
   const [mapping, setMapping] = useState<MappingConfig>({});
   const [summaryResult, setSummaryResult] = useState<SummaryOutput | null>(null);
   const [checkResult, setCheckResult] = useState<CheckOutput | null>(null);
+  const [rangeRules, setRangeRules] = useState<RangeRule[]>([]);
   const [runningMessage, setRunningMessage] = useState("Running summary analysis...");
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +72,11 @@ export function App() {
     }
   }, []);
 
-  const handleConfirmMapping = useCallback(async () => {
+  const handleConfirmMapping = useCallback(() => {
+    setStep("rules");
+  }, []);
+
+  const handleRunAnalysis = useCallback(async () => {
     if (!filePath) return;
     setStep("running");
     setError(null);
@@ -83,6 +89,12 @@ export function App() {
       );
       const mappingPath = await window.d2e.writeTempMapping(cleanMapping);
 
+      // Write config with range rules if any are defined
+      let configPath: string | undefined;
+      if (rangeRules.length > 0) {
+        configPath = await window.d2e.writeTempConfig({ range_rules: rangeRules });
+      }
+
       // Phase 1: Summarize
       const tempOut = filePath + ".d2e-summary.json";
       const sumResult = await window.d2e.runEngine({
@@ -94,7 +106,7 @@ export function App() {
 
       if (!sumResult.ok) {
         setError(sumResult.stderr || "Summary failed.");
-        setStep("mapping");
+        setStep("rules");
         return;
       }
       setSummaryResult(sumResult.data as SummaryOutput);
@@ -106,6 +118,7 @@ export function App() {
         command: "check",
         input: filePath,
         mapping: mappingPath,
+        config: configPath,
         outDir
       });
 
@@ -120,9 +133,9 @@ export function App() {
       setStep("results");
     } catch (err) {
       setError(String(err));
-      setStep("mapping");
+      setStep("rules");
     }
-  }, [filePath, mapping]);
+  }, [filePath, mapping, rangeRules]);
 
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
@@ -181,6 +194,7 @@ export function App() {
     setFilePath(null);
     setProfileResult(null);
     setMapping({});
+    setRangeRules([]);
     setSummaryResult(null);
     setCheckResult(null);
     setError(null);
@@ -214,6 +228,16 @@ export function App() {
           onMappingChange={setMapping}
           onConfirm={handleConfirmMapping}
           onBack={() => setStep("import")}
+        />
+      )}
+
+      {step === "rules" && profileResult && (
+        <RulesStep
+          profileResult={profileResult}
+          rangeRules={rangeRules}
+          onRulesChange={setRangeRules}
+          onConfirm={handleRunAnalysis}
+          onBack={() => setStep("mapping")}
         />
       )}
 

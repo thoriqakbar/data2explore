@@ -1,6 +1,7 @@
 const STEPS = [
   { key: "import", label: "Import" },
   { key: "mapping", label: "Mapping" },
+  { key: "rules", label: "Rules" },
   { key: "running", label: "Running" },
   { key: "results", label: "Results" }
 ] as const;

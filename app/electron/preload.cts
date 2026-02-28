@@ -10,6 +10,7 @@ type RunEnginePayload = {
   mapping?: string;
   checks?: string;
   data?: string;
+  config?: string;
 };
 
 contextBridge.exposeInMainWorld("d2e", {
@@ -19,5 +20,7 @@ contextBridge.exposeInMainWorld("d2e", {
   saveFile: (defaultName?: string) =>
     ipcRenderer.invoke("dialog:save-file", defaultName) as Promise<string | null>,
   writeTempMapping: (mapping: Record<string, string>) =>
-    ipcRenderer.invoke("engine:write-temp-mapping", mapping) as Promise<string>
+    ipcRenderer.invoke("engine:write-temp-mapping", mapping) as Promise<string>,
+  writeTempConfig: (config: Record<string, unknown>) =>
+    ipcRenderer.invoke("engine:write-temp-config", config) as Promise<string>
 });

@@ -70,3 +70,9 @@ export interface CheckOutput {
   flags: FlagRow[];
   summary: CheckSummary;
 }
+
+export interface RangeRule {
+  column: string;
+  min?: number | null;
+  max?: number | null;
+}

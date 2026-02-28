@@ -39,6 +39,7 @@ type RunEnginePayload = {
   mapping?: string;
   checks?: string;
   data?: string;
+  config?: string;
 };
 
 ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
@@ -71,6 +72,7 @@ ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
   }
 
   if (payload.mapping) args.push("--mapping", resolveUserPath(payload.mapping));
+  if (payload.config) args.push("--config", resolveUserPath(payload.config));
   if (payload.checks) args.push("--checks", payload.checks);
 
   return new Promise<{ ok: boolean; stdout: string; stderr: string; data?: unknown }>(
@@ -160,6 +162,17 @@ ipcMain.handle(
     const filename = `d2e-mapping-${randomUUID()}.json`;
     const tempPath = path.join(tempDir, filename);
     await writeFile(tempPath, JSON.stringify(mapping, null, 2), "utf-8");
+    return tempPath;
+  }
+);
+
+ipcMain.handle(
+  "engine:write-temp-config",
+  async (_event, config: Record<string, unknown>) => {
+    const tempDir = app.getPath("temp");
+    const filename = `d2e-config-${randomUUID()}.json`;
+    const tempPath = path.join(tempDir, filename);
+    await writeFile(tempPath, JSON.stringify(config, null, 2), "utf-8");
     return tempPath;
   }
 );

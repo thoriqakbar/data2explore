@@ -7,13 +7,14 @@ from typing import Any
 import pandas as pd
 
 from d2e_engine.checks.base import FlagRow
-from d2e_engine.checks import chk001_duplicate_id, chk002_missingness_variable, chk008_outlier_zscore
+from d2e_engine.checks import chk001_duplicate_id, chk002_missingness_variable, chk005_range_check, chk008_outlier_zscore
 
 logger = logging.getLogger(__name__)
 
 _CHECKS: list[ModuleType] = [
     chk001_duplicate_id,
     chk002_missingness_variable,
+    chk005_range_check,
     chk008_outlier_zscore,
 ]
 
