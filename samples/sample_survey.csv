@@ -1,0 +1,6 @@
+id,enumerator_id,survey_date,module,age,duration_minutes,books_borrowed
+R001,E01,2025-04-01,core,34,22,3
+R002,E01,2025-04-01,core,29,18,1
+R003,E02,2025-04-02,library,41,27,7
+R004,E03,2025-04-02,library,38,31,5
+R005,E02,2025-04-03,core,33,20,2

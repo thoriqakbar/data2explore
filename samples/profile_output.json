@@ -1,0 +1,53 @@
+{
+  "ok": true,
+  "schema_profile": {
+    "row_count": 5,
+    "column_count": 7,
+    "columns": [
+      {
+        "name": "id",
+        "dtype": "str",
+        "missing_count": 0,
+        "non_missing_count": 5
+      },
+      {
+        "name": "enumerator_id",
+        "dtype": "str",
+        "missing_count": 0,
+        "non_missing_count": 5
+      },
+      {
+        "name": "survey_date",
+        "dtype": "str",
+        "missing_count": 0,
+        "non_missing_count": 5
+      },
+      {
+        "name": "module",
+        "dtype": "str",
+        "missing_count": 0,
+        "non_missing_count": 5
+      },
+      {
+        "name": "age",
+        "dtype": "int64",
+        "missing_count": 0,
+        "non_missing_count": 5
+      },
+      {
+        "name": "duration_minutes",
+        "dtype": "int64",
+        "missing_count": 0,
+        "non_missing_count": 5
+      },
+      {
+        "name": "books_borrowed",
+        "dtype": "int64",
+        "missing_count": 0,
+        "non_missing_count": 5
+      }
+    ]
+  },
+  "warnings": [],
+  "errors": []
+}

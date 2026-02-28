@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SummaryStatsRow",
+  "type": "object",
+  "required": ["variable", "obs", "mean", "std_dev", "min", "max"],
+  "properties": {
+    "variable": { "type": "string" },
+    "obs": { "type": "integer", "minimum": 0 },
+    "mean": { "type": ["number", "null"] },
+    "std_dev": { "type": ["number", "null"] },
+    "min": { "type": ["number", "null"] },
+    "max": { "type": ["number", "null"] }
+  },
+  "additionalProperties": false
+}

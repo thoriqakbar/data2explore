@@ -1,0 +1,28 @@
+# Node
+node_modules/
+pnpm-lock.yaml
+dist/
+app/dist-electron/
+out/
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+
+# App runtime files
+workspace/
+*.db
+
+# Claude Code (machine-local)
+.claude/
+
+# Runtime output files
+*.d2e-profile.json
+*.d2e-summary.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

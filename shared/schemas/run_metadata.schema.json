@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RunMetadata",
+  "type": "object",
+  "required": [
+    "run_id",
+    "dataset_path",
+    "dataset_hash",
+    "config_hash",
+    "engine_version",
+    "app_version",
+    "timestamp"
+  ],
+  "properties": {
+    "run_id": { "type": "string" },
+    "dataset_path": { "type": "string" },
+    "dataset_hash": { "type": "string" },
+    "config_hash": { "type": "string" },
+    "engine_version": { "type": "string" },
+    "app_version": { "type": "string" },
+    "timestamp": { "type": "string" }
+  },
+  "additionalProperties": false
+}

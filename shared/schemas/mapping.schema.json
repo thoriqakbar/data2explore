@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MappingConfig",
+  "type": "object",
+  "required": ["id", "enumerator_id", "survey_date"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "enumerator_id": { "type": "string", "minLength": 1 },
+    "survey_date": { "type": "string", "minLength": 1 },
+    "module": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

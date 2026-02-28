@@ -1,0 +1,13 @@
+[project]
+name = "d2e-engine"
+version = "0.1.0"
+description = "data2explore deterministic engine scaffold"
+requires-python = ">=3.11"
+dependencies = [
+  "openpyxl>=3.1.5",
+  "pandas>=2.2.3",
+  "pyreadstat>=1.2.8"
+]
+
+[tool.uv]
+dev-dependencies = []
