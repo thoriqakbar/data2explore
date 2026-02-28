@@ -109,3 +109,30 @@ Living document tracking key design decisions. Newest entries at the bottom.
 **Context:** Needed to show new/resolved/persisting flags between consecutive runs to help supervisors track progress.
 **Decision:** A flag is uniquely identified by the tuple `(id, check_id, column_name)`. The `--prior-flags` CLI option loads a previous `flags.csv` and computes set differences against the current run.
 **Reasoning:** The three-tuple captures "which observation, which check, which column" — enough to detect whether the same issue persists. Using set operations (current − prior = new, prior − current = resolved, intersection = persisting) is simple and correct for the MVP. Richer delta logic (e.g. tracking value changes) can be layered on later.
+
+---
+
+## 013 — CHK-010 duration anomaly with four subtypes
+
+**Date:** 2026-02
+**Context:** Interview duration is a high-value fraud signal. The sample data contains 140 duration anomalies across four subtypes: impossible (≤0), short (1-4 min), long (180-360 min), and heaped (round numbers 5/10/15).
+**Decision:** Single check module with four non-overlapping detection subtypes, each with configurable thresholds: `min_duration_minutes` (default 5), `max_duration_minutes` (default 120), `heaping_multiple` (default 5), `heaping_ceiling` (default 15). Impossible (≤0) is always Critical; others are Warning.
+**Reasoning:** Subtypes capture distinct fraud patterns — impossible values are data entry errors, short interviews suggest rushing, long interviews suggest idle tablets, heaped values suggest fabrication. Keeping them in one check avoids check proliferation while the `rule_reference` field preserves subtype for filtering. Heaping detection at the row level has inherent false positives; a future per-enumerator heaping rate check (proportion of round durations) would be more precise.
+
+---
+
+## 014 — CHK-004 missingness by enumerator using deviation factor
+
+**Date:** 2026-02
+**Context:** CHK-002 flags columns with high overall missingness, but can't detect non-random patterns by enumerator. E19 has 85% missing income vs. dataset baseline of ~30% — a strong fraud signal.
+**Decision:** Compare each enumerator's per-column missing rate against the dataset-wide baseline. Flag when `enumerator_rate > baseline_rate × deviation_factor` (default 2.0). Escalate to Critical at 4× baseline. Skip columns with <1% baseline missingness (no meaningful signal). Requires `enumerator_id` mapping.
+**Reasoning:** Deviation-from-baseline is robust to datasets with naturally high missingness (a column with 40% baseline won't flag an enumerator at 45%). The multiplicative factor is more intuitive than a fixed threshold difference. Excluding low-baseline columns prevents noise from near-complete columns.
+
+---
+
+## 015 — CHK-009 meta-check via flag aggregation through config injection
+
+**Date:** 2026-02
+**Context:** Need a "supervisor dashboard" check that flags enumerators with disproportionately many issues across all other checks. This is a meta-check that depends on prior check results.
+**Decision:** CHK-009 runs last in the check registry. The runner injects `_prior_flags_for_aggregation` into the config dict before calling CHK-009. The check counts flags per enumerator and compares against the median using `enumerator_anomaly_deviation` (default 2.0). Minimum 5 flags to trigger.
+**Reasoning:** Injecting through config keeps the `run(df, mapping, config, run_id)` interface uniform — no special runner code path for meta-checks. The `_` prefix convention signals internal use. Running last ensures all prior flags are available. Median-based deviation is robust to outliers in flag counts themselves.

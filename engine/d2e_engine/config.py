@@ -9,6 +9,18 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "missing_warning_threshold": 0.20,
     "missing_critical_threshold": 0.50,
     "range_rules": [],
+    # CHK-010 duration anomaly
+    "duration_column": "duration_minutes",
+    "min_duration_minutes": 5,
+    "max_duration_minutes": 120,
+    "heaping_multiple": 5,
+    "heaping_ceiling": 15,
+    # CHK-004 missingness by enumerator
+    "missingness_enumerator_deviation": 2.0,
+    "missingness_enumerator_min_rows": 10,
+    # CHK-009 enumerator anomaly rate
+    "enumerator_anomaly_deviation": 2.0,
+    "enumerator_anomaly_min_flags": 5,
 }
 
 

@@ -7,15 +7,27 @@ from typing import Any
 import pandas as pd
 
 from d2e_engine.checks.base import FlagRow
-from d2e_engine.checks import chk001_duplicate_id, chk002_missingness_variable, chk005_range_check, chk008_outlier_zscore
+from d2e_engine.checks import (
+    chk001_duplicate_id,
+    chk002_missingness_variable,
+    chk004_missingness_enumerator,
+    chk005_range_check,
+    chk008_outlier_zscore,
+    chk009_enumerator_anomaly_rate,
+    chk010_duration_anomaly,
+)
 
 logger = logging.getLogger(__name__)
 
+# CHK-009 must be last: it aggregates flags from all preceding checks.
 _CHECKS: list[ModuleType] = [
     chk001_duplicate_id,
     chk002_missingness_variable,
+    chk004_missingness_enumerator,
     chk005_range_check,
     chk008_outlier_zscore,
+    chk010_duration_anomaly,
+    chk009_enumerator_anomaly_rate,
 ]
 
 _CHECK_BY_ID: dict[str, ModuleType] = {
@@ -65,6 +77,10 @@ def run_checks(
             continue
 
         try:
+            # CHK-009 aggregates prior flags — inject them via config
+            if check_id == "CHK-009":
+                config = {**config, "_prior_flags_for_aggregation": [f.as_dict() for f in all_flags]}
+
             flags = check_module.run(df, mapping, config, run_id)
             all_flags.extend(flags)
             logger.info("%s produced %d flag(s)", check_id, len(flags))
