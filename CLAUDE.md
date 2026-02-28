@@ -31,11 +31,13 @@ pnpm build
 # Run Python engine directly
 pnpm engine:profile
 pnpm engine:summarize
+pnpm engine:check
 
 # Or manually from engine/:
 cd engine && uv sync
 uv run python -m d2e_engine profile --input ../samples/sample_survey.csv --out ../samples/profile_output.json
 uv run python -m d2e_engine summarize --input ../samples/sample_survey.csv --mapping ../samples/sample_mapping.json --out ../samples/summary_output.json
+uv run python -m d2e_engine check --input ../samples/sample_survey.csv --mapping ../samples/sample_mapping.json --out-dir ../samples/check_output/
 ```
 
 ## Architecture
@@ -50,9 +52,10 @@ Renderer (React/Vite)  ──IPC──▶  Main (Electron/Node)  ──subproces
 1. **Renderer** (`app/src/`): React UI calls `window.d2e.runEngine()` exposed via preload bridge
 2. **Main process** (`app/electron/main.ts`): IPC handler `engine:run` spawns `uv run python -m d2e_engine <command>` as a child process in the `engine/` working directory
 3. **Preload** (`app/electron/preload.ts`): Context bridge with `contextIsolation: true`, exposes `d2e.runEngine()`
-4. **Python engine** (`engine/d2e_engine/`): Stateless CLI with two commands:
+4. **Python engine** (`engine/d2e_engine/`): Stateless CLI with three commands:
    - `profile` — schema profiling (row/col counts, dtypes, missingness)
    - `summarize` — summary statistics with mapping validation
+   - `check` — run HFC checks, outputs flags.csv + run_metadata.json + summary.json
 5. **Shared types** (`shared/index.ts`): TypeScript types and JSON schemas used by both Electron and renderer
 
 ### Data flow
