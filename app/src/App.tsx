@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { MappingConfig, ProfileOutput, SummaryOutput } from "../../shared/index";
+import type { MappingConfig, ProfileOutput, SummaryOutput, CheckOutput } from "../../shared/index";
 import { Stepper } from "./components/Stepper";
 import { ImportStep } from "./components/ImportStep";
 import { MappingStep } from "./components/MappingStep";
@@ -16,7 +16,7 @@ const MAPPING_FIELDS: (keyof MappingConfig)[] = [
 ];
 
 function autoGuessMapping(columns: string[]): MappingConfig {
-  const mapping: MappingConfig = { id: "", enumerator_id: "", survey_date: "" };
+  const mapping: MappingConfig = {};
   const lowerMap = new Map(columns.map((c) => [c.toLowerCase(), c]));
   for (const field of MAPPING_FIELDS) {
     const match = lowerMap.get(field.toLowerCase());
@@ -29,13 +29,10 @@ export function App() {
   const [step, setStep] = useState<Step>("import");
   const [filePath, setFilePath] = useState<string | null>(null);
   const [profileResult, setProfileResult] = useState<ProfileOutput | null>(null);
-  const [mapping, setMapping] = useState<MappingConfig>({
-    id: "",
-    enumerator_id: "",
-    survey_date: "",
-    module: ""
-  });
+  const [mapping, setMapping] = useState<MappingConfig>({});
   const [summaryResult, setSummaryResult] = useState<SummaryOutput | null>(null);
+  const [checkResult, setCheckResult] = useState<CheckOutput | null>(null);
+  const [runningMessage, setRunningMessage] = useState("Running summary analysis...");
   const [error, setError] = useState<string | null>(null);
 
   const handleSelectFile = useCallback(async () => {
@@ -77,6 +74,7 @@ export function App() {
     if (!filePath) return;
     setStep("running");
     setError(null);
+    setRunningMessage("Running summary analysis...");
 
     try {
       // Strip undefined optional fields before writing
@@ -84,22 +82,41 @@ export function App() {
         Object.entries(mapping).filter(([, v]) => v !== undefined && v !== "")
       );
       const mappingPath = await window.d2e.writeTempMapping(cleanMapping);
-      const tempOut = filePath + ".d2e-summary.json";
 
-      const result = await window.d2e.runEngine({
+      // Phase 1: Summarize
+      const tempOut = filePath + ".d2e-summary.json";
+      const sumResult = await window.d2e.runEngine({
         command: "summarize",
         input: filePath,
         mapping: mappingPath,
         out: tempOut
       });
 
-      if (!result.ok) {
-        setError(result.stderr || "Summary failed.");
+      if (!sumResult.ok) {
+        setError(sumResult.stderr || "Summary failed.");
         setStep("mapping");
         return;
       }
+      setSummaryResult(sumResult.data as SummaryOutput);
 
-      setSummaryResult(result.data as SummaryOutput);
+      // Phase 2: Check
+      setRunningMessage("Running HFC checks...");
+      const outDir = filePath + ".d2e-checks";
+      const chkResult = await window.d2e.runEngine({
+        command: "check",
+        input: filePath,
+        mapping: mappingPath,
+        outDir
+      });
+
+      if (chkResult.ok && chkResult.data) {
+        const data = chkResult.data as { flags: CheckOutput["flags"]; summary: CheckOutput["summary"] };
+        setCheckResult({ ok: true, flags: data.flags, summary: data.summary });
+      } else {
+        // Non-fatal: show results without checks
+        setCheckResult(null);
+      }
+
       setStep("results");
     } catch (err) {
       setError(String(err));
@@ -107,13 +124,67 @@ export function App() {
     }
   }, [filePath, mapping]);
 
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+
+  const handleExportReport = useCallback(async () => {
+    if (!profileResult || !summaryResult || !filePath) return;
+    setExporting(true);
+    setExportMessage(null);
+    try {
+      // Build combined report data from current state
+      const reportData = {
+        profile: profileResult.schema_profile,
+        summary_stats: summaryResult.summary_stats,
+        check_summary: checkResult?.summary ?? { run_id: "", total_flags: 0, by_severity: {}, by_check: {}, skipped_checks: [] },
+        flags: checkResult?.flags ?? [],
+        run_metadata: {
+          dataset_path: filePath,
+          timestamp: new Date().toISOString(),
+          engine_version: "0.1.0",
+        },
+        mapping,
+      };
+
+      // Write combined JSON to temp file
+      const tempPath = await window.d2e.writeTempMapping(reportData as unknown as Record<string, string>);
+
+      // Show save dialog
+      const fileName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") ?? "d2e";
+      const savePath = await window.d2e.saveFile(`${fileName}-hfc-report.xlsx`);
+      if (!savePath) {
+        setExporting(false);
+        return;
+      }
+
+      // Generate report via engine
+      const result = await window.d2e.runEngine({
+        command: "report",
+        data: tempPath,
+        out: savePath,
+      });
+
+      if (result.ok) {
+        setExportMessage(`Report saved to ${savePath}`);
+      } else {
+        setExportMessage(`Export failed: ${result.stderr}`);
+      }
+    } catch (err) {
+      setExportMessage(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setExporting(false);
+    }
+  }, [filePath, profileResult, summaryResult, checkResult, mapping]);
+
   const handleStartOver = useCallback(() => {
     setStep("import");
     setFilePath(null);
     setProfileResult(null);
-    setMapping({ id: "", enumerator_id: "", survey_date: "" });
+    setMapping({});
     setSummaryResult(null);
+    setCheckResult(null);
     setError(null);
+    setExportMessage(null);
   }, []);
 
   return (
@@ -146,14 +217,28 @@ export function App() {
         />
       )}
 
-      {step === "running" && <RunningStep />}
+      {step === "running" && <RunningStep message={runningMessage} />}
 
       {step === "results" && profileResult && summaryResult && (
-        <ResultsStep
-          profileResult={profileResult}
-          summaryResult={summaryResult}
-          onStartOver={handleStartOver}
-        />
+        <>
+          <ResultsStep
+            profileResult={profileResult}
+            summaryResult={summaryResult}
+            checkResult={checkResult}
+            onStartOver={handleStartOver}
+            onExportReport={handleExportReport}
+            exporting={exporting}
+          />
+          {exportMessage && (
+            <div className={`mt-4 p-3 rounded-lg text-sm ${
+              exportMessage.startsWith("Report saved")
+                ? "bg-green-50 border border-green-200 text-green-800"
+                : "bg-red-50 border border-red-200 text-red-700"
+            }`}>
+              {exportMessage}
+            </div>
+          )}
+        </>
       )}
 
       {step !== "import" && error && (

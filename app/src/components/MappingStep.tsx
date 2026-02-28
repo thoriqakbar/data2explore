@@ -1,6 +1,6 @@
 import type { MappingConfig, ProfileOutput } from "../../../shared/index";
 
-const REQUIRED_FIELDS: { key: keyof MappingConfig; label: string }[] = [
+const RECOMMENDED_FIELDS: { key: keyof MappingConfig; label: string }[] = [
   { key: "id", label: "Row ID" },
   { key: "enumerator_id", label: "Enumerator ID" },
   { key: "survey_date", label: "Survey Date" }
@@ -10,7 +10,7 @@ const OPTIONAL_FIELDS: { key: keyof MappingConfig; label: string }[] = [
   { key: "module", label: "Module" }
 ];
 
-const ALL_FIELDS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
+const ALL_FIELDS = [...RECOMMENDED_FIELDS, ...OPTIONAL_FIELDS];
 
 interface Props {
   profileResult: ProfileOutput;
@@ -30,17 +30,20 @@ export function MappingStep({
   const columns = profileResult.schema_profile.columns.map((c) => c.name);
   const selectedValues = ALL_FIELDS.map((f) => mapping[f.key]).filter(Boolean);
 
-  const allRequiredMapped = REQUIRED_FIELDS.every((f) => mapping[f.key] !== "" && mapping[f.key] !== undefined);
+  const anyFieldMapped = selectedValues.length > 0;
+  const unmappedRecommended = RECOMMENDED_FIELDS.filter((f) => !mapping[f.key]);
   const hasDuplicates =
     new Set(selectedValues).size !== selectedValues.length;
 
-  function renderDropdown(field: { key: keyof MappingConfig; label: string }, required: boolean) {
+  function renderDropdown(field: { key: keyof MappingConfig; label: string }, recommended: boolean) {
     const value = mapping[field.key] ?? "";
     return (
       <div key={field.key}>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {field.label}
-          {!required && <span className="text-gray-400 font-normal ml-1">(optional)</span>}
+          {recommended
+            ? <span className="text-blue-500 font-normal ml-1">(recommended)</span>
+            : <span className="text-gray-400 font-normal ml-1">(optional)</span>}
         </label>
         <select
           value={value}
@@ -49,7 +52,7 @@ export function MappingStep({
           }
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
         >
-          <option value="">{required ? "— Select column —" : "— None —"}</option>
+          <option value="">— None —</option>
           {columns.map((col) => {
             const usedByOther = selectedValues.includes(col) && value !== col;
             return (
@@ -74,13 +77,19 @@ export function MappingStep({
       </div>
 
       <div className="grid gap-4 max-w-md">
-        {REQUIRED_FIELDS.map((f) => renderDropdown(f, true))}
+        {RECOMMENDED_FIELDS.map((f) => renderDropdown(f, true))}
         {OPTIONAL_FIELDS.map((f) => renderDropdown(f, false))}
       </div>
 
       {hasDuplicates && (
         <p className="text-sm text-amber-600">
           Each column can only be mapped to one field.
+        </p>
+      )}
+
+      {unmappedRecommended.length > 0 && !hasDuplicates && (
+        <p className="text-sm text-amber-600">
+          Unmapped: {unmappedRecommended.map((f) => f.label).join(", ")} — some checks will be skipped.
         </p>
       )}
 
@@ -93,10 +102,10 @@ export function MappingStep({
         </button>
         <button
           onClick={onConfirm}
-          disabled={!allRequiredMapped || hasDuplicates}
+          disabled={!anyFieldMapped || hasDuplicates}
           className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
         >
-          Run Summary
+          Analyze
         </button>
       </div>
     </div>

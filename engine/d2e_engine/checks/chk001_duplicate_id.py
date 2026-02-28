@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 CHECK_ID = "CHK-001"
 CHECK_NAME = "Duplicate ID"
 SEVERITY = "Critical"
+REQUIRED_MAPPING_FIELDS = ("id",)
 
 
 def run(

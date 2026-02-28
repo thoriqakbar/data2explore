@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 CHECK_ID = "CHK-008"
 CHECK_NAME = "Outlier Z-score"
 SEVERITY = "Warning"
+REQUIRED_MAPPING_FIELDS = ()
 MIN_STD_DEV = 1e-9
 
 

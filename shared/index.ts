@@ -1,7 +1,7 @@
 export interface MappingConfig {
-  id: string;
-  enumerator_id: string;
-  survey_date: string;
+  id?: string;
+  enumerator_id?: string;
+  survey_date?: string;
   module?: string;
 }
 
@@ -39,4 +39,34 @@ export interface SummaryOutput {
   defaults: { outlier_method: string; zscore_threshold: number };
   warnings: string[];
   errors: string[];
+}
+
+export interface FlagRow {
+  run_id: string;
+  check_id: string;
+  check_name: string;
+  severity: string;
+  status: string;
+  id: string;
+  enumerator_id: string;
+  module: string;
+  column_name: string;
+  observed_value: string;
+  rule_reference: string;
+  message: string;
+  created_at: string;
+}
+
+export interface CheckSummary {
+  run_id: string;
+  total_flags: number;
+  by_severity: Record<string, number>;
+  by_check: Record<string, number>;
+  skipped_checks: Array<{ check_id: string; reason: string }>;
+}
+
+export interface CheckOutput {
+  ok: boolean;
+  flags: FlagRow[];
+  summary: CheckSummary;
 }

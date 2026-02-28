@@ -20,6 +20,8 @@ workspace/
 # Runtime output files
 *.d2e-profile.json
 *.d2e-summary.json
+samples/check_output/
+*.d2e-checks/
 
 # OS / editor
 .DS_Store

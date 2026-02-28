@@ -82,6 +82,14 @@ def build_summary_json(
     return summary
 
 
+def flags_to_json(flags: list[FlagRow], out_path: str | Path) -> None:
+    """Write flags as a JSON array (one dict per flag)."""
+    path = Path(out_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump([flag.as_dict() for flag in flags], f, indent=2)
+
+
 def summary_to_json(summary: dict[str, Any], out_path: str | Path) -> None:
     """Write summary dict to JSON."""
     path = Path(out_path)

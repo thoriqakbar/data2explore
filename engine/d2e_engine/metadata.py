@@ -32,6 +32,7 @@ def build_run_metadata(
     dataset_path: str | Path,
     config: dict[str, Any],
     app_version: str | None = None,
+    checks_requested: list[str] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Build run metadata and return (run_id, metadata_dict)."""
     run_id = str(uuid.uuid4())
@@ -42,6 +43,7 @@ def build_run_metadata(
         "config_hash": sha256_json(config),
         "engine_version": __version__,
         "app_version": app_version or "",
+        "checks_requested": checks_requested or "all",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     return run_id, metadata

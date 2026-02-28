@@ -18,6 +18,12 @@ def load_mapping(mapping_path: Path) -> dict[str, str]:
     return mapping
 
 
+def load_mapping_lenient(mapping_path: Path) -> dict[str, str]:
+    """Load mapping JSON without requiring all fields. For use by the check command."""
+    with mapping_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def summarize_numeric(df: pd.DataFrame) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     numeric_cols = df.select_dtypes(include=["number"]).columns

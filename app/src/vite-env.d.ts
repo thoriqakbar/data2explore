@@ -1,12 +1,15 @@
 /// <reference types="vite/client" />
 
-type EngineCommand = "profile" | "summarize";
+type EngineCommand = "profile" | "summarize" | "check" | "report";
 
 interface RunEnginePayload {
   command: EngineCommand;
-  input: string;
-  out: string;
+  input?: string;
+  out?: string;
+  outDir?: string;
   mapping?: string;
+  checks?: string;
+  data?: string;
 }
 
 interface EngineResponse {
@@ -20,6 +23,7 @@ interface Window {
   d2e: {
     runEngine: (payload: RunEnginePayload) => Promise<EngineResponse>;
     selectFile: () => Promise<string | null>;
+    saveFile: (defaultName?: string) => Promise<string | null>;
     writeTempMapping: (mapping: Record<string, string>) => Promise<string>;
   };
 }

@@ -9,10 +9,11 @@ from typing import Any
 from d2e_engine.config import load_config
 from d2e_engine.io import read_data
 from d2e_engine.metadata import build_run_metadata
-from d2e_engine.output import build_summary_json, flags_to_csv, load_prior_flags, summary_to_json
+from d2e_engine.output import build_summary_json, flags_to_csv, flags_to_json, load_prior_flags, summary_to_json
 from d2e_engine.profile import profile_dataframe
-from d2e_engine.runner import run_all_checks
-from d2e_engine.summarize import build_summary, load_mapping
+from d2e_engine.report import generate_report
+from d2e_engine.runner import run_checks
+from d2e_engine.summarize import build_summary, load_mapping, load_mapping_lenient
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ def cmd_profile(args: argparse.Namespace) -> int:
 
 def cmd_summarize(args: argparse.Namespace) -> int:
     df = read_data(Path(args.input), args.format)
-    mapping = load_mapping(Path(args.mapping))
+    mapping = load_mapping_lenient(Path(args.mapping))
     payload = {"ok": True, **build_summary(df, mapping), "warnings": [], "errors": []}
     _write_json(Path(args.out), payload)
     print(f"Wrote summary to {args.out}")
@@ -44,28 +45,53 @@ def cmd_check(args: argparse.Namespace) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     df = read_data(Path(args.input), args.format)
-    mapping = load_mapping(Path(args.mapping))
+
+    # Mapping is now optional — load leniently or default to empty
+    if args.mapping:
+        mapping = load_mapping_lenient(Path(args.mapping))
+    else:
+        mapping = {}
+
     config = load_config(args.config)
+
+    # Parse --checks into list, or None for all
+    selected_check_ids: list[str] | None = None
+    if args.checks:
+        selected_check_ids = [c.strip() for c in args.checks.split(",")]
 
     run_id, metadata = build_run_metadata(
         dataset_path=args.input,
         config=config,
         app_version=args.app_version,
+        checks_requested=selected_check_ids,
     )
 
-    flags = run_all_checks(df, mapping, config, run_id)
+    flags, skipped = run_checks(df, mapping, config, run_id, selected_check_ids)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     flags_to_csv(flags, out_dir / "flags.csv")
+    flags_to_json(flags, out_dir / "flags.json")
     _write_json(out_dir / "run_metadata.json", metadata)
 
     prior_flags = load_prior_flags(args.prior_flags)
     summary = build_summary_json(flags, run_id, prior_flags if args.prior_flags else None)
+    summary["skipped_checks"] = skipped
     summary_to_json(summary, out_dir / "summary.json")
 
     print(f"Check complete: {len(flags)} flag(s) written to {out_dir}")
+    if skipped:
+        print(f"  Skipped {len(skipped)} check(s): {', '.join(s['check_id'] for s in skipped)}")
+    return 0
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    data_path = Path(args.data)
+    with data_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    out = generate_report(data, Path(args.out))
+    print(f"Wrote report to {out}")
     return 0
 
 
@@ -88,13 +114,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     check = sub.add_parser("check")
     check.add_argument("--input", required=True)
-    check.add_argument("--mapping", required=True)
+    check.add_argument("--mapping", default=None, help="Mapping JSON file (optional — checks needing unmapped fields are skipped)")
+    check.add_argument("--checks", default=None, help="Comma-separated check IDs to run (default: all)")
     check.add_argument("--out-dir", required=True)
     check.add_argument("--format", default="auto", choices=["auto", "csv", "xlsx", "txt", "dta"])
     check.add_argument("--config", default=None, help="JSON config file (optional, overrides defaults)")
     check.add_argument("--prior-flags", default=None, help="Prior flags.csv for delta comparison")
     check.add_argument("--app-version", default=None, help="App version for run metadata")
     check.set_defaults(handler=cmd_check)
+
+    report = sub.add_parser("report")
+    report.add_argument("--data", required=True, help="Combined report data JSON")
+    report.add_argument("--out", required=True, help="Output .xlsx path")
+    report.set_defaults(handler=cmd_report)
 
     return parser
 

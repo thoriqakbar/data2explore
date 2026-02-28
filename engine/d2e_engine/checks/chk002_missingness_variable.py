@@ -11,6 +11,7 @@ from d2e_engine.profile import profile_dataframe
 
 CHECK_ID = "CHK-002"
 CHECK_NAME = "Missingness by Variable"
+REQUIRED_MAPPING_FIELDS = ()
 
 
 def run(
