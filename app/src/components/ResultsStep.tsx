@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { CheckOutput, FlagRow, ProfileOutput, SummaryOutput } from "../../../shared/index";
+import { buildProblemSections, categoryForCheckId } from "./results/problemReview";
+import { ProblemReviewSection } from "./ProblemReviewSection";
 
 type SeverityFilter = "all" | "critical" | "warning";
 
@@ -14,12 +16,6 @@ type EnumeratorPatternRow = {
   share_of_all_flags: number;
 };
 
-type EnumeratorRecordGroup = {
-  id: string;
-  module: string;
-  flags: FlagRow[];
-};
-
 interface Props {
   profileResult: ProfileOutput;
   summaryResult: SummaryOutput;
@@ -29,16 +25,6 @@ interface Props {
   onExportFlags?: (content: string) => void;
   exporting?: boolean;
 }
-
-const CHECK_CATEGORY_LABELS: Record<string, string> = {
-  "CHK-001": "ID / Duplicate",
-  "CHK-002": "Missingness",
-  "CHK-004": "Missingness",
-  "CHK-005": "Range",
-  "CHK-008": "Outliers",
-  "CHK-009": "Enumerator risk",
-  "CHK-010": "Duration",
-};
 
 function csvEscape(value: unknown): string {
   const text = String(value ?? "");
@@ -51,7 +37,7 @@ function toRunDate(value: string): string {
 }
 
 function checkLabel(checkId: string): string {
-  return CHECK_CATEGORY_LABELS[checkId] ?? checkId;
+  return categoryForCheckId(checkId);
 }
 
 function formatPercent(value: number): string {
@@ -70,7 +56,6 @@ export function ResultsStep({
   const { schema_profile } = profileResult;
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [enumeratorFilter, setEnumeratorFilter] = useState<string>("all");
-  const [selectedEnumerator, setSelectedEnumerator] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
 
   const criticalCount = checkResult?.summary.by_severity["critical"] ?? 0;
@@ -127,16 +112,6 @@ export function ResultsStep({
       );
   }, [preEnumeratorFlags]);
 
-  useEffect(() => {
-    if (enumeratorPatterns.length === 0) {
-      setSelectedEnumerator(null);
-      return;
-    }
-    if (!selectedEnumerator || !enumeratorPatterns.some((row) => row.enumerator_id === selectedEnumerator)) {
-      setSelectedEnumerator(enumeratorPatterns[0].enumerator_id);
-    }
-  }, [enumeratorPatterns, selectedEnumerator]);
-
   const enumerators = useMemo(
     () => [...new Set(allFlags.map((flag) => flag.enumerator_id).filter(Boolean))].sort(),
     [allFlags]
@@ -155,28 +130,10 @@ export function ResultsStep({
       });
   }, [preEnumeratorFlags, enumeratorFilter]);
 
-  const selectedPattern = useMemo(
-    () => enumeratorPatterns.find((row) => row.enumerator_id === selectedEnumerator) ?? null,
-    [enumeratorPatterns, selectedEnumerator]
+  const problemSections = useMemo(
+    () => buildProblemSections(filteredFlags),
+    [filteredFlags]
   );
-
-  const selectedEnumeratorGroups = useMemo<EnumeratorRecordGroup[]>(() => {
-    if (!selectedEnumerator) return [];
-    const groups = new Map<string, EnumeratorRecordGroup>();
-    for (const flag of preEnumeratorFlags) {
-      if (flag.enumerator_id !== selectedEnumerator) continue;
-      const key = flag.id || "Unknown record";
-      const existing = groups.get(key) ?? { id: key, module: flag.module, flags: [] };
-      existing.flags.push(flag);
-      if (!existing.module && flag.module) existing.module = flag.module;
-      groups.set(key, existing);
-    }
-    return [...groups.values()].sort((a, b) => {
-      const criticalA = a.flags.filter((flag) => flag.severity === "critical").length;
-      const criticalB = b.flags.filter((flag) => flag.severity === "critical").length;
-      return criticalB - criticalA || b.flags.length - a.flags.length || a.id.localeCompare(b.id);
-    });
-  }, [preEnumeratorFlags, selectedEnumerator]);
 
   const flagsWithMissingEnumerator = preEnumeratorFlags.filter((flag) => !flag.enumerator_id).length;
   const filtersActive =
@@ -205,13 +162,6 @@ export function ResultsStep({
     setEnumeratorFilter("all");
     setDateRange({ from: "", to: "" });
   };
-
-  const focusEnumerator = (enumeratorId: string) => {
-    setSelectedEnumerator(enumeratorId);
-    setEnumeratorFilter(enumeratorId);
-  };
-
-  const clearEnumeratorFocus = () => setEnumeratorFilter("all");
 
   return (
     <div className="space-y-8">
@@ -422,206 +372,30 @@ export function ResultsStep({
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div>
-                  <h4 className="font-semibold text-gray-800">Enumerator Patterns</h4>
-                  <p className="text-sm text-gray-500">
-                    Ranked view of which enumerators are driving repeated issue patterns across the visible flags.
-                  </p>
-                </div>
-
-                {enumeratorPatterns.length > 0 ? (
-                  <div className="overflow-x-auto rounded-lg border border-gray-200">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-2 px-3 font-medium text-gray-600">Enumerator</th>
-                          <th className="text-right py-2 px-3 font-medium text-gray-600">Total Flags</th>
-                          <th className="text-right py-2 px-3 font-medium text-gray-600">Critical</th>
-                          <th className="text-right py-2 px-3 font-medium text-gray-600">Affected Records</th>
-                          <th className="text-left py-2 px-3 font-medium text-gray-600">Top Checks</th>
-                          <th className="text-right py-2 px-3 font-medium text-gray-600">Share</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {enumeratorPatterns.map((row) => {
-                          const isSelected = row.enumerator_id === selectedEnumerator;
-                          return (
-                            <tr
-                              key={row.enumerator_id}
-                              className={`border-b border-gray-100 cursor-pointer transition-colors ${
-                                isSelected ? "bg-blue-50" : "hover:bg-gray-50"
-                              }`}
-                              onClick={() => focusEnumerator(row.enumerator_id)}
-                            >
-                              <td className="py-3 px-3">
-                                <span className="font-mono text-xs font-medium text-gray-900">{row.enumerator_id}</span>
-                              </td>
-                              <td className="py-3 px-3 text-right font-medium text-gray-900">{row.total_flags}</td>
-                              <td className="py-3 px-3 text-right">
-                                <span className={row.critical_flags > 0 ? "font-medium text-red-700" : "text-gray-500"}>
-                                  {row.critical_flags}
-                                </span>
-                              </td>
-                              <td className="py-3 px-3 text-right text-gray-700">{row.affected_records}</td>
-                              <td className="py-3 px-3 text-xs text-gray-700">
-                                {row.top_checks.map((item) => `${item.label} (${item.count})`).join(", ")}
-                              </td>
-                              <td className="py-3 px-3 text-right text-gray-700">{formatPercent(row.share_of_all_flags)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
-                    {flagsWithMissingEnumerator > 0
-                      ? "No enumerator-based patterns available because the visible flags do not carry usable enumerator IDs."
-                      : "No enumerator-based patterns are available for the current filters."}
-                  </div>
-                )}
-              </div>
-
-              {selectedPattern && (
+              {problemSections.length > 0 && (
                 <div className="space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h4 className="font-semibold text-gray-800">Enumerator Detail</h4>
-                      <p className="text-sm text-gray-500">
-                        Flagged records and recurring anomaly types for enumerator <span className="font-mono">{selectedPattern.enumerator_id}</span>.
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => focusEnumerator(selectedPattern.enumerator_id)}
-                        className="px-3 py-1.5 border border-blue-300 rounded-md text-sm text-blue-700 hover:bg-blue-50 transition-colors"
-                      >
-                        Show Raw Flags
-                      </button>
-                      {enumeratorFilter !== "all" && (
-                        <button
-                          onClick={clearEnumeratorFocus}
-                          className="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          Clear Raw Focus
-                        </button>
-                      )}
-                    </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-800">Problem Review</h4>
+                    <p className="text-sm text-gray-500">
+                      Flags grouped by problem type. Sorted by severity — address critical issues first.
+                    </p>
                   </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                      <p className="text-xl font-bold text-gray-900">{selectedPattern.total_flags}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Visible Flags</p>
-                    </div>
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <p className="text-xl font-bold text-red-700">{selectedPattern.critical_flags}</p>
-                      <p className="text-xs text-red-600 mt-0.5">Critical</p>
-                    </div>
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <p className="text-xl font-bold text-amber-700">{selectedPattern.warning_flags}</p>
-                      <p className="text-xs text-amber-600 mt-0.5">Warning</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                      <p className="text-xl font-bold text-gray-900">{selectedPattern.affected_records}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Affected Records</p>
-                    </div>
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                      <p className="text-xl font-bold text-gray-900">{selectedPattern.unique_checks}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Distinct Checks</p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
-                    <div>
-                      <h5 className="text-sm font-medium text-gray-700">Check Mix</h5>
-                      <p className="text-xs text-gray-500">
-                        Categories with the highest repeated anomaly counts for this enumerator.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedPattern.top_checks.map((item) => (
-                        <span
-                          key={item.label}
-                          className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-gray-300 text-xs text-gray-700"
-                        >
-                          {item.label} ({item.count})
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h5 className="text-sm font-medium text-gray-700">Flagged Records</h5>
-                    {selectedEnumeratorGroups.map((group) => (
-                      <div key={group.id} className="border border-gray-200 rounded-lg bg-white">
-                        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-3">
-                          <span className="text-sm font-medium text-gray-900">
-                            Record <span className="font-mono text-xs">{group.id}</span>
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {group.flags.length} flag{group.flags.length === 1 ? "" : "s"}
-                          </span>
-                          {group.module && (
-                            <span className="text-xs text-gray-500">
-                              Module: <span className="font-mono">{group.module}</span>
-                            </span>
-                          )}
-                        </div>
-                        <div className="divide-y divide-gray-100">
-                          {group.flags.map((flag, index) => (
-                            <div key={`${group.id}-${flag.check_id}-${index}`} className="px-4 py-3 grid grid-cols-1 sm:grid-cols-[160px_110px_1fr] gap-3">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{flag.check_name}</p>
-                                <p className="text-[11px] font-mono text-gray-400">{flag.check_id}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <span
-                                  className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
-                                    flag.severity === "critical" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
-                                  }`}
-                                >
-                                  {flag.severity}
-                                </span>
-                                <p className="font-mono text-xs text-gray-500">{flag.column_name || "\u2014"}</p>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-xs text-gray-700">{flag.message}</p>
-                                <p className="text-xs text-gray-500">
-                                  Observed value: <span className="font-mono">{flag.observed_value || "\u2014"}</span>
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  {problemSections.map((section, index) => (
+                    <ProblemReviewSection
+                      key={section.key}
+                      section={section}
+                      defaultExpanded={index === 0}
+                    />
+                  ))}
                 </div>
               )}
 
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h4 className="font-semibold text-gray-800">All Flags</h4>
-                    <p className="text-sm text-gray-500">
-                      Raw flag list for detailed review. This remains the canonical full audit view.
-                    </p>
-                  </div>
-                  {enumeratorFilter !== "all" && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-600">
-                        Showing raw flags for enumerator <span className="font-mono">{enumeratorFilter}</span>
-                      </span>
-                      <button
-                        onClick={clearEnumeratorFocus}
-                        className="px-3 py-1.5 border border-gray-300 rounded-md text-xs text-gray-700 hover:bg-gray-100 transition-colors"
-                      >
-                        Clear enumerator focus
-                      </button>
-                    </div>
-                  )}
+                <div>
+                  <h4 className="font-semibold text-gray-800">All Flags</h4>
+                  <p className="text-sm text-gray-500">
+                    Raw flag list for detailed review and audit.
+                  </p>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -663,6 +437,58 @@ export function ResultsStep({
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <h4 className="font-semibold text-gray-800">Enumerator Patterns</h4>
+                  <p className="text-sm text-gray-500">
+                    Ranked view of which enumerators are driving repeated issue patterns across the visible flags.
+                  </p>
+                </div>
+
+                {enumeratorPatterns.length > 0 ? (
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-2 px-3 font-medium text-gray-600">Enumerator</th>
+                          <th className="text-right py-2 px-3 font-medium text-gray-600">Total Flags</th>
+                          <th className="text-right py-2 px-3 font-medium text-gray-600">Critical</th>
+                          <th className="text-right py-2 px-3 font-medium text-gray-600">Affected Records</th>
+                          <th className="text-left py-2 px-3 font-medium text-gray-600">Top Checks</th>
+                          <th className="text-right py-2 px-3 font-medium text-gray-600">Share</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {enumeratorPatterns.map((row) => (
+                          <tr key={row.enumerator_id} className="border-b border-gray-100">
+                            <td className="py-3 px-3">
+                              <span className="font-mono text-xs font-medium text-gray-900">{row.enumerator_id}</span>
+                            </td>
+                            <td className="py-3 px-3 text-right font-medium text-gray-900">{row.total_flags}</td>
+                            <td className="py-3 px-3 text-right">
+                              <span className={row.critical_flags > 0 ? "font-medium text-red-700" : "text-gray-500"}>
+                                {row.critical_flags}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right text-gray-700">{row.affected_records}</td>
+                            <td className="py-3 px-3 text-xs text-gray-700">
+                              {row.top_checks.map((item) => `${item.label} (${item.count})`).join(", ")}
+                            </td>
+                            <td className="py-3 px-3 text-right text-gray-700">{formatPercent(row.share_of_all_flags)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
+                    {flagsWithMissingEnumerator > 0
+                      ? "No enumerator-based patterns available because the visible flags do not carry usable enumerator IDs."
+                      : "No enumerator-based patterns are available for the current filters."}
+                  </div>
+                )}
               </div>
             </>
           )}

@@ -145,3 +145,12 @@ Living document tracking key design decisions. Newest entries at the bottom.
 **Context:** The app already had a two-phase `summarize -> check` run flow, but the renderer had no stable way to distinguish first run vs rerun, no lightweight persistence for mapping/rules, and no supervisor-friendly filtered export path.
 **Decision:** Keep rerun comparison session-scoped in the renderer using the previous run's `flags.csv` path, add `has_prior_run` plus stable delta counts to `summary.json`, treat mapping + range-rule save/load as user-managed JSON config rather than project persistence, and export filtered flags as a renderer-composed CSV artifact.
 **Reasoning:** This delivers the operational supervisor workflow without introducing a project database. A stable summary contract is simpler than inferring state from optional fields. Config save/load removes repeated setup work while preserving the stateless app model from Decision 006. Filtered CSV export belongs in the renderer because it depends on transient UI state rather than raw engine output.
+
+---
+
+## 017 — Problem-First Results layout over enumerator-centric drill-down
+
+**Date:** 2026-03
+**Context:** The Results page originally organized flags by enumerator (click an enumerator row → see their flagged records). Field supervisors review HFC output by problem type — "show me all short interviews" or "show me all range violations" — not by cycling through enumerators one at a time.
+**Decision:** Replace the enumerator drill-down with a Problem Review section that groups flags by problem category (Duration, Missingness, Outliers, Range, Duplicate/ID, Enumerator Risk). Each category is a collapsible card showing affected record count, top enumerators, and expandable record-level flag cards. The Enumerator Patterns table is demoted below the All Flags table as a read-only reference (no click interaction). The All Flags raw table remains for audit/export.
+**Reasoning:** Problem-first grouping matches the supervisor's mental model — address one category of issues at a time. Collapsible sections prevent information overload while keeping everything on one page. Keeping the raw flags table preserves the audit trail. Demoting (rather than removing) Enumerator Patterns retains the cross-enumerator comparison without the interactive complexity of the drill-down view. Pure data logic is extracted to `results/problemReview.ts` for testability.
