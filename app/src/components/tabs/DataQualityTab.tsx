@@ -224,14 +224,24 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
               <span>
                 Showing {filteredFlags.length} of {totalUnfilteredFlags} flags. Date filter uses run timestamp from `created_at`.
               </span>
-              {filtersActive && (
-                <button
-                  onClick={clearFilters}
-                  className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  Clear Filters
-                </button>
-              )}
+              <div className="flex gap-2">
+                {filtersActive && (
+                  <button
+                    onClick={clearFilters}
+                    className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+                {onExportFlags && (
+                  <button
+                    onClick={exportFlagsCsv}
+                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 font-medium transition-colors"
+                  >
+                    {filtersActive ? "Export Filtered (CSV)" : "Export CSV"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -302,16 +312,6 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
             </div>
           </div>
 
-          {onExportFlags && (
-            <div className="pt-2">
-              <button
-                onClick={exportFlagsCsv}
-                className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium text-sm transition-colors"
-              >
-                {filtersActive ? "Export Filtered Flags (CSV)" : "Export Flags (CSV)"}
-              </button>
-            </div>
-          )}
         </>
       )}
     </div>

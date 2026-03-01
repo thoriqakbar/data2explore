@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import type {
+  AllowedValuesRule,
   CheckOutput,
   MappingConfig,
   PerformanceOutput,
@@ -56,6 +57,9 @@ function sanitizeLoadedConfig(raw: unknown, profileResult: ProfileOutput | null)
     version?: unknown;
     mapping?: unknown;
     range_rules?: unknown;
+    allowed_values_rules?: unknown;
+    excluded_columns?: unknown;
+    enabled_checks?: unknown;
   };
 
   if (candidate.version !== "1") {
@@ -105,11 +109,44 @@ function sanitizeLoadedConfig(raw: unknown, profileResult: ProfileOutput | null)
     range_rules.push({ column, min, max });
   }
 
+  // Allowed values rules
+  const avInput = Array.isArray(candidate.allowed_values_rules) ? candidate.allowed_values_rules : [];
+  const allowed_values_rules: AllowedValuesRule[] = [];
+  for (const rule of avInput) {
+    if (!rule || typeof rule !== "object") continue;
+    const record = rule as Record<string, unknown>;
+    const column = typeof record.column === "string" ? record.column : "";
+    if (!column) continue;
+    if (columns.size > 0 && !columns.has(column)) {
+      warnings.push(`Dropped allowed-values rule for "${column}" because the column is missing in this dataset.`);
+      continue;
+    }
+    const values = Array.isArray(record.values) ? record.values.map(String) : [];
+    allowed_values_rules.push({ column, values });
+  }
+
+  // Excluded columns
+  const exInput = Array.isArray(candidate.excluded_columns) ? candidate.excluded_columns : [];
+  const excluded_columns: string[] = [];
+  for (const col of exInput) {
+    if (typeof col !== "string") continue;
+    if (columns.size > 0 && !columns.has(col)) continue;
+    excluded_columns.push(col);
+  }
+
+  // Enabled checks
+  const enabled_checks = Array.isArray(candidate.enabled_checks)
+    ? candidate.enabled_checks.filter((c): c is string => typeof c === "string")
+    : undefined;
+
   return {
     config: {
       version: "1",
       mapping,
       range_rules,
+      allowed_values_rules,
+      excluded_columns,
+      enabled_checks,
     },
     warning: warnings.length > 0 ? warnings.join(" ") : null,
   };
@@ -124,6 +161,9 @@ export function App() {
   const [checkResult, setCheckResult] = useState<CheckOutput | null>(null);
   const [performanceResult, setPerformanceResult] = useState<PerformanceOutput | null>(null);
   const [rangeRules, setRangeRules] = useState<RangeRule[]>([]);
+  const [allowedValuesRules, setAllowedValuesRules] = useState<AllowedValuesRule[]>([]);
+  const [excludedColumns, setExcludedColumns] = useState<string[]>([]);
+  const [enabledChecks, setEnabledChecks] = useState<string[] | null>(null);
   const [runningMessage, setRunningMessage] = useState("Running summary analysis...");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -168,14 +208,23 @@ export function App() {
           const loaded = sanitizeLoadedConfig(runContext.lastConfigSnapshot, profile);
           setMapping({ ...autoMapping, ...loaded.config.mapping });
           setRangeRules(loaded.config.range_rules);
+          setAllowedValuesRules(loaded.config.allowed_values_rules ?? []);
+          setExcludedColumns(loaded.config.excluded_columns ?? []);
+          setEnabledChecks(loaded.config.enabled_checks ?? null);
           if (loaded.warning) setNotice(loaded.warning);
         } catch {
           setMapping(autoMapping);
           setRangeRules([]);
+          setAllowedValuesRules([]);
+          setExcludedColumns([]);
+          setEnabledChecks(null);
         }
       } else {
         setMapping(autoMapping);
         setRangeRules([]);
+        setAllowedValuesRules([]);
+        setExcludedColumns([]);
+        setEnabledChecks(null);
       }
 
       setStep("mapping");
@@ -198,6 +247,9 @@ export function App() {
       const loaded = sanitizeLoadedConfig(raw, profileResult);
       setMapping(loaded.config.mapping);
       setRangeRules(loaded.config.range_rules);
+      setAllowedValuesRules(loaded.config.allowed_values_rules ?? []);
+      setExcludedColumns(loaded.config.excluded_columns ?? []);
+      setEnabledChecks(loaded.config.enabled_checks ?? null);
       setRunContext((current) => ({ ...current, lastConfigSnapshot: loaded.config }));
       setNotice(loaded.warning ?? "Configuration loaded.");
     } catch (err) {
@@ -213,6 +265,9 @@ export function App() {
         version: "1",
         mapping,
         range_rules: rangeRules,
+        allowed_values_rules: allowedValuesRules,
+        excluded_columns: excludedColumns,
+        enabled_checks: enabledChecks ?? undefined,
       };
       const savePath = await window.d2e.saveConfig(config);
       if (!savePath) return;
@@ -221,7 +276,7 @@ export function App() {
     } catch (err) {
       setError(`Failed to save configuration: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [mapping, rangeRules]);
+  }, [mapping, rangeRules, allowedValuesRules, excludedColumns, enabledChecks]);
 
   const handleRunAnalysis = useCallback(async () => {
     if (!filePath) return;
@@ -240,11 +295,19 @@ export function App() {
         version: "1",
         mapping,
         range_rules: rangeRules,
+        allowed_values_rules: allowedValuesRules,
+        excluded_columns: excludedColumns,
+        enabled_checks: enabledChecks ?? undefined,
       };
 
+      const engineConfig: Record<string, unknown> = {};
+      if (rangeRules.length > 0) engineConfig.range_rules = rangeRules;
+      if (allowedValuesRules.length > 0) engineConfig.allowed_values_rules = allowedValuesRules;
+      if (excludedColumns.length > 0) engineConfig.excluded_columns = excludedColumns;
+
       let configPath: string | undefined;
-      if (rangeRules.length > 0) {
-        configPath = await window.d2e.writeTempConfig({ range_rules: rangeRules });
+      if (Object.keys(engineConfig).length > 0) {
+        configPath = await window.d2e.writeTempConfig(engineConfig);
       }
 
       const tempOut = filePath + ".d2e-summary.json";
@@ -252,6 +315,7 @@ export function App() {
         command: "summarize",
         input: filePath,
         mapping: mappingPath,
+        config: configPath,
         out: tempOut,
       });
 
@@ -273,6 +337,7 @@ export function App() {
         outDir,
         priorFlags,
         appVersion: APP_VERSION,
+        checks: enabledChecks ? enabledChecks.join(",") : undefined,
       });
 
       let checkSummaryPath: string | undefined;
@@ -324,7 +389,7 @@ export function App() {
       setError(String(err));
       setStep("rules");
     }
-  }, [filePath, mapping, rangeRules, runContext.lastCheckOutDir]);
+  }, [filePath, mapping, rangeRules, allowedValuesRules, excludedColumns, enabledChecks, runContext.lastCheckOutDir]);
 
   const handleExportReport = useCallback(async () => {
     if (!profileResult || !summaryResult || !filePath) return;
@@ -361,8 +426,9 @@ export function App() {
       };
 
       const tempPath = await window.d2e.writeTempConfig(reportData as Record<string, unknown>);
-      const fileName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") ?? "d2e";
-      const savePath = await window.d2e.saveFile(`${fileName}-hfc-report.xlsx`, "xlsx");
+      const dataName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") ?? "d2e";
+      const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const savePath = await window.d2e.saveFile(`${datePrefix}_${dataName}_HFCReport.xlsx`, "xlsx");
       if (!savePath) {
         setExporting(false);
         return;
@@ -390,8 +456,9 @@ export function App() {
     if (!filePath) return;
     setExportMessage(null);
     try {
-      const fileName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") ?? "d2e";
-      const savePath = await window.d2e.saveFile(`${fileName}-flags.csv`, "csv");
+      const dataName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") ?? "d2e";
+      const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const savePath = await window.d2e.saveFile(`${datePrefix}_${dataName}_HFCReport.csv`, "csv");
       if (!savePath) return;
       await window.d2e.writeFile(savePath, content);
       setExportMessage(`Flags exported to ${savePath}`);
@@ -406,6 +473,9 @@ export function App() {
     setProfileResult(null);
     setMapping({});
     setRangeRules([]);
+    setAllowedValuesRules([]);
+    setExcludedColumns([]);
+    setEnabledChecks(null);
     setSummaryResult(null);
     setCheckResult(null);
     setPerformanceResult(null);
@@ -450,6 +520,15 @@ export function App() {
           profileResult={profileResult}
           rangeRules={rangeRules}
           onRulesChange={setRangeRules}
+          allowedValuesRules={allowedValuesRules}
+          onAllowedValuesChange={setAllowedValuesRules}
+          excludedColumns={excludedColumns}
+          onExcludedColumnsChange={setExcludedColumns}
+          enabledChecks={enabledChecks}
+          onEnabledChecksChange={setEnabledChecks}
+          mappedFields={Object.keys(mapping).filter(
+            (k) => mapping[k as keyof MappingConfig] !== undefined && mapping[k as keyof MappingConfig] !== ""
+          )}
           onConfirm={handleRunAnalysis}
           onBack={() => setStep("mapping")}
           onSaveConfig={handleSaveConfig}

@@ -23,6 +23,8 @@ def run(
     warning_threshold = config.get("missing_warning_threshold", 0.20)
     critical_threshold = config.get("missing_critical_threshold", 0.50)
 
+    excluded: set[str] = set(config.get("excluded_columns", []))
+
     profile = profile_dataframe(df)
     row_count = profile["row_count"]
     if row_count == 0:
@@ -30,6 +32,8 @@ def run(
 
     flags: list[FlagRow] = []
     for col_info in profile["columns"]:
+        if col_info["name"] in excluded:
+            continue
         missing = col_info["missing_count"]
         rate = missing / row_count
 

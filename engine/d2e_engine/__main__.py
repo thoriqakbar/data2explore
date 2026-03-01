@@ -36,7 +36,9 @@ def cmd_profile(args: argparse.Namespace) -> int:
 def cmd_summarize(args: argparse.Namespace) -> int:
     df = read_data(Path(args.input), args.format)
     mapping = load_mapping_lenient(Path(args.mapping))
-    payload = {"ok": True, **build_summary(df, mapping), "warnings": [], "errors": []}
+    config = load_config(args.config)
+    excluded = set(config.get("excluded_columns", []))
+    payload = {"ok": True, **build_summary(df, mapping, excluded or None), "warnings": [], "errors": []}
     _write_json(Path(args.out), payload)
     print(f"Wrote summary to {args.out}")
     return 0
@@ -120,6 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
     summarize.add_argument("--input", required=True)
     summarize.add_argument("--mapping", required=True)
     summarize.add_argument("--format", default="auto", choices=["auto", "csv", "xlsx", "txt", "dta"])
+    summarize.add_argument("--config", default=None, help="JSON config file (optional)")
     summarize.add_argument("--out", required=True)
     summarize.set_defaults(handler=cmd_summarize)
 

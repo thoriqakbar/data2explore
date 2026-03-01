@@ -9,6 +9,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "missing_warning_threshold": 0.20,
     "missing_critical_threshold": 0.50,
     "range_rules": [],
+    "allowed_values_rules": [],
+    "excluded_columns": [],
     # CHK-010 duration anomaly
     "duration_column": "duration_minutes",
     "min_duration_minutes": 5,

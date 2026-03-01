@@ -157,8 +157,16 @@ export interface RangeRule {
   max?: number | null;
 }
 
+export interface AllowedValuesRule {
+  column: string;
+  values: string[];
+}
+
 export interface ProjectConfig {
   version: "1";
   mapping: MappingConfig;
   range_rules: RangeRule[];
+  allowed_values_rules?: AllowedValuesRule[];
+  excluded_columns?: string[];
+  enabled_checks?: string[];
 }

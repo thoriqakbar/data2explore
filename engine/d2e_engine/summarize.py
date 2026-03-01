@@ -25,10 +25,15 @@ def load_mapping_lenient(mapping_path: Path) -> dict[str, str]:
         return json.load(f)
 
 
-def summarize_numeric(df: pd.DataFrame) -> list[dict[str, Any]]:
+def summarize_numeric(
+    df: pd.DataFrame,
+    excluded_columns: set[str] | None = None,
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     numeric_cols = df.select_dtypes(include=["number"]).columns
     for col in sorted(numeric_cols):
+        if excluded_columns and col in excluded_columns:
+            continue
         series = df[col].dropna()
 
         if len(series):
@@ -60,13 +65,17 @@ def summarize_numeric(df: pd.DataFrame) -> list[dict[str, Any]]:
     return rows
 
 
-def build_summary(df: pd.DataFrame, mapping: dict[str, str]) -> dict[str, Any]:
+def build_summary(
+    df: pd.DataFrame,
+    mapping: dict[str, str],
+    excluded_columns: set[str] | None = None,
+) -> dict[str, Any]:
     for logical, source_col in mapping.items():
         if source_col not in df.columns:
             raise ValueError(f"Mapped column for '{logical}' not found: {source_col}")
 
     return {
-        "summary_stats": summarize_numeric(df),
+        "summary_stats": summarize_numeric(df, excluded_columns),
         "mapping": mapping,
         "defaults": {"outlier_method": "zscore", "zscore_threshold": 3.0},
     }

@@ -13,8 +13,9 @@ from d2e_engine.checks import (
     chk004_missingness_enumerator,
     chk005_range_check,
     chk008_outlier_zscore,
-    chk009_enumerator_anomaly_rate,
     chk010_duration_anomaly,
+    chk012_allowed_values,
+    chk009_enumerator_anomaly_rate,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,8 @@ _CHECKS: list[ModuleType] = [
     chk005_range_check,
     chk008_outlier_zscore,
     chk010_duration_anomaly,
-    chk009_enumerator_anomaly_rate,
+    chk012_allowed_values,
+    chk009_enumerator_anomaly_rate,  # must be last: aggregates prior flags
 ]
 
 _CHECK_BY_ID: dict[str, ModuleType] = {

@@ -1,10 +1,11 @@
 """Excel report generation for HFC check results.
 
-Produces a 4-sheet workbook:
+Produces an N-sheet workbook:
   1. Summary   – run metadata, severity counts, flags-by-check
   2. Flags     – all flags with auto-filter and conditional formatting
-  3. Action Sheet – flags grouped by enumerator, with editable Status/Note columns
-  4. Data Overview – column details and summary statistics
+  3. Action Sheet – all flags date-sorted, with editable Status/Note columns
+  4…N-1. Per-enumerator sheets – one per enumerator with flags
+  N. Data Overview – column details and summary statistics
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ def generate_report(data: dict, out_path: Path) -> Path:
     _write_summary_sheet(wb, data)
     _write_flags_sheet(wb, data.get("flags", []))
     _write_action_sheet(wb, data.get("flags", []))
+    _write_enumerator_sheets(wb, data.get("flags", []))
     _write_data_overview_sheet(wb, data)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -115,13 +117,14 @@ def _write_summary_sheet(wb: Workbook, data: dict) -> None:
 # ── Sheet 2: Flags ──────────────────────────────────────────────────
 
 _FLAG_COLUMNS = [
-    "check_id", "check_name", "severity", "id", "enumerator_id",
-    "module", "column_name", "observed_value", "message",
+    "check_id", "check_name", "severity", "status", "id", "enumerator_id",
+    "module", "column_name", "observed_value", "rule_reference", "message",
+    "created_at",
 ]
 
 _FLAG_HEADERS = [
-    "Check ID", "Check Name", "Severity", "ID", "Enumerator",
-    "Module", "Column", "Value", "Message",
+    "Check ID", "Check Name", "Severity", "Status", "ID", "Enumerator",
+    "Module", "Column", "Value", "Rule", "Message", "Date",
 ]
 
 
@@ -153,17 +156,26 @@ def _write_flags_sheet(wb: Workbook, flags: list[dict]) -> None:
 # ── Sheet 3: Action Sheet ──────────────────────────────────────────
 
 def _write_action_sheet(wb: Workbook, flags: list[dict]) -> None:
+    """All flags sorted chronologically with editable Note column."""
     ws = wb.create_sheet("Action Sheet")
+    _populate_action_sheet(ws, flags)
 
-    headers = _FLAG_HEADERS + ["Status", "Note"]
+
+def _populate_action_sheet(ws: Worksheet, flags: list[dict]) -> None:
+    """Shared logic for Action Sheet and per-enumerator sheets."""
+    headers = _FLAG_HEADERS + ["Note"]
     _header_row(ws, 1, headers)
     ws.freeze_panes = "A2"
 
-    # Sort by enumerator_id, then severity (critical first)
+    # Sort: created_at asc → enumerator_id → severity (critical first)
     sev_order = {"critical": 0, "warning": 1}
     sorted_flags = sorted(
         flags,
-        key=lambda f: (f.get("enumerator_id", ""), sev_order.get(f.get("severity", "").lower(), 9)),
+        key=lambda f: (
+            f.get("created_at", ""),
+            f.get("enumerator_id", ""),
+            sev_order.get(f.get("severity", "").lower(), 9),
+        ),
     )
 
     for i, flag in enumerate(sorted_flags, start=2):
@@ -174,13 +186,12 @@ def _write_action_sheet(wb: Workbook, flags: list[dict]) -> None:
                 cell.fill = _FILL_CRITICAL
             elif sev_lower == "warning":
                 cell.fill = _FILL_WARNING
-        # Status and Note columns left blank for supervisor
+        # Note column left blank for supervisor
         ws.cell(row=i, column=len(_FLAG_COLUMNS) + 1, value="")
-        ws.cell(row=i, column=len(_FLAG_COLUMNS) + 2, value="")
 
-    # Data validation dropdown for Status column
+    # Data validation dropdown for Status column (col 4 in _FLAG_COLUMNS)
     if sorted_flags:
-        status_col = len(_FLAG_COLUMNS) + 1
+        status_col = _FLAG_COLUMNS.index("status") + 1
         dv = DataValidation(
             type="list",
             formula1='"Open,Resolved,Needs Review"',
@@ -199,7 +210,23 @@ def _write_action_sheet(wb: Workbook, flags: list[dict]) -> None:
     _autosize(ws)
 
 
-# ── Sheet 4: Data Overview ──────────────────────────────────────────
+# ── Per-enumerator sheets ──────────────────────────────────────────
+
+def _write_enumerator_sheets(wb: Workbook, flags: list[dict]) -> None:
+    """Create one sheet per enumerator that has flags."""
+    by_enum: dict[str, list[dict]] = {}
+    for f in flags:
+        eid = f.get("enumerator_id", "") or "(unknown)"
+        by_enum.setdefault(eid, []).append(f)
+
+    for eid in sorted(by_enum):
+        # Excel sheet names max 31 chars, no special chars
+        sheet_name = str(eid)[:31]
+        ws = wb.create_sheet(sheet_name)
+        _populate_action_sheet(ws, by_enum[eid])
+
+
+# ── Data Overview ──────────────────────────────────────────────────
 
 def _write_data_overview_sheet(wb: Workbook, data: dict) -> None:
     ws = wb.create_sheet("Data Overview")

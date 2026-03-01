@@ -26,13 +26,15 @@ def run(
     run_id: str,
 ) -> list[FlagRow]:
     threshold = config.get("zscore_threshold", 3.0)
+    excluded: set[str] = set(config.get("excluded_columns", []))
+
     id_col = mapping.get("id", "")
     enum_col = mapping.get("enumerator_id", "")
     module_col = mapping.get("module", "")
 
     # Build lookup of mean/std from summarize_numeric
     stats_by_col: dict[str, dict[str, Any]] = {}
-    for row in summarize_numeric(df):
+    for row in summarize_numeric(df, excluded or None):
         std = row.get("std_dev")
         mean = row.get("mean")
         if std is not None and std >= MIN_STD_DEV and mean is not None:
@@ -43,6 +45,8 @@ def run(
 
     flags: list[FlagRow] = []
     for col, stats in stats_by_col.items():
+        if col in excluded:
+            continue
         mean = stats["mean"]
         std = stats["std"]
         series = df[col]
