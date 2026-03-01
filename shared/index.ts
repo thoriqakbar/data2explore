@@ -5,6 +5,12 @@ export interface MappingConfig {
   module?: string;
 }
 
+export interface HistogramBin {
+  bin_start: number;
+  bin_end: number;
+  count: number;
+}
+
 export interface SummaryStatRow {
   variable: string;
   obs: number;
@@ -12,6 +18,8 @@ export interface SummaryStatRow {
   std_dev: number | null;
   min: number | null;
   max: number | null;
+  percentiles: Record<string, number> | null;
+  histogram: HistogramBin[] | null;
 }
 
 export interface SchemaColumnProfile {
@@ -86,6 +94,61 @@ export interface CheckOutput {
   flags: FlagRow[];
   summary: CheckSummary;
   run_metadata: RunMetadata;
+}
+
+export interface DailyCompletion {
+  date: string;
+  count: number;
+  cumulative: number;
+}
+
+export interface EnumeratorStat {
+  enumerator_id: string;
+  total_surveys: number;
+  first_date: string;
+  last_date: string;
+  active_days: number;
+  surveys_per_day: number;
+  avg_duration: number | null;
+  median_duration: number | null;
+  min_duration: number | null;
+  max_duration: number | null;
+  flag_count: number;
+}
+
+export interface DurationStats {
+  column: string;
+  overall_mean: number;
+  overall_median: number;
+  overall_std: number | null;
+  overall_min: number;
+  overall_max: number;
+  histogram: HistogramBin[];
+}
+
+export interface PerformanceTotals {
+  total_surveys: number;
+  total_enumerators: number;
+  date_range_days: number;
+  first_date: string | null;
+  last_date: string | null;
+}
+
+export interface DailyByEnumerator {
+  date: string;
+  enumerator_id: string;
+  count: number;
+}
+
+export interface PerformanceOutput {
+  ok: boolean;
+  daily_completions: DailyCompletion[];
+  enumerator_stats: EnumeratorStat[];
+  duration_stats: DurationStats | null;
+  daily_by_enumerator: DailyByEnumerator[] | null;
+  totals: PerformanceTotals | null;
+  warnings: string[];
+  errors: string[];
 }
 
 export interface RangeRule {

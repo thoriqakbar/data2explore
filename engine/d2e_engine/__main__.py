@@ -10,6 +10,7 @@ from d2e_engine.config import load_config
 from d2e_engine.io import read_data
 from d2e_engine.metadata import build_run_metadata
 from d2e_engine.output import build_summary_json, flags_to_csv, flags_to_json, load_prior_flags, summary_to_json
+from d2e_engine.performance import build_performance
 from d2e_engine.profile import profile_dataframe
 from d2e_engine.report import generate_report
 from d2e_engine.runner import run_checks
@@ -86,6 +87,16 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_performance(args: argparse.Namespace) -> int:
+    df = read_data(Path(args.input), args.format)
+    mapping = load_mapping_lenient(Path(args.mapping))
+    config = load_config(args.config)
+    payload = build_performance(df, mapping, config, args.check_summary)
+    _write_json(Path(args.out), payload)
+    print(f"Wrote performance to {args.out}")
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     data_path = Path(args.data)
     with data_path.open("r", encoding="utf-8") as f:
@@ -122,6 +133,15 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--prior-flags", default=None, help="Prior flags.csv for delta comparison")
     check.add_argument("--app-version", default=None, help="App version for run metadata")
     check.set_defaults(handler=cmd_check)
+
+    performance = sub.add_parser("performance")
+    performance.add_argument("--input", required=True)
+    performance.add_argument("--mapping", required=True)
+    performance.add_argument("--format", default="auto", choices=["auto", "csv", "xlsx", "txt", "dta"])
+    performance.add_argument("--config", default=None, help="JSON config file (optional)")
+    performance.add_argument("--check-summary", default=None, help="Path to check summary.json for flag counts")
+    performance.add_argument("--out", required=True)
+    performance.set_defaults(handler=cmd_performance)
 
     report = sub.add_parser("report")
     report.add_argument("--data", required=True, help="Combined report data JSON")

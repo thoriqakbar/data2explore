@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-type EngineCommand = "profile" | "summarize" | "check" | "report";
+type EngineCommand = "profile" | "summarize" | "check" | "report" | "performance";
 
 type RunEnginePayload = {
   command: EngineCommand;
@@ -13,6 +13,7 @@ type RunEnginePayload = {
   config?: string;
   priorFlags?: string;
   appVersion?: string;
+  checkSummary?: string;
 };
 
 contextBridge.exposeInMainWorld("d2e", {

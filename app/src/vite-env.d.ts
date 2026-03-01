@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-type EngineCommand = "profile" | "summarize" | "check" | "report";
+type EngineCommand = "profile" | "summarize" | "check" | "report" | "performance";
 
 interface RunEnginePayload {
   command: EngineCommand;
@@ -13,6 +13,7 @@ interface RunEnginePayload {
   config?: string;
   priorFlags?: string;
   appVersion?: string;
+  checkSummary?: string;
 }
 
 interface EngineResponse {

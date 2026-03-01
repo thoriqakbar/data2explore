@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import type {
   CheckOutput,
   MappingConfig,
+  PerformanceOutput,
   ProfileOutput,
   ProjectConfig,
   RangeRule,
@@ -121,6 +122,7 @@ export function App() {
   const [mapping, setMapping] = useState<MappingConfig>({});
   const [summaryResult, setSummaryResult] = useState<SummaryOutput | null>(null);
   const [checkResult, setCheckResult] = useState<CheckOutput | null>(null);
+  const [performanceResult, setPerformanceResult] = useState<PerformanceOutput | null>(null);
   const [rangeRules, setRangeRules] = useState<RangeRule[]>([]);
   const [runningMessage, setRunningMessage] = useState("Running summary analysis...");
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +145,7 @@ export function App() {
       setProfileResult(null);
       setSummaryResult(null);
       setCheckResult(null);
+      setPerformanceResult(null);
 
       const tempOut = selected + ".d2e-profile.json";
       const result = await window.d2e.runEngine({
@@ -272,6 +275,7 @@ export function App() {
         appVersion: APP_VERSION,
       });
 
+      let checkSummaryPath: string | undefined;
       if (chkResult.ok && chkResult.data) {
         const data = chkResult.data as {
           flags: CheckOutput["flags"];
@@ -288,9 +292,31 @@ export function App() {
           lastCheckOutDir: outDir,
           lastConfigSnapshot: projectConfig,
         });
+        checkSummaryPath = outDir + "/summary.json";
       } else {
         setCheckResult(null);
         setRunContext((current) => ({ ...current, lastConfigSnapshot: projectConfig }));
+      }
+
+      // Phase 3: Performance metrics (non-fatal)
+      setRunningMessage("Computing performance metrics...");
+      try {
+        const perfOut = filePath + ".d2e-performance.json";
+        const perfResult = await window.d2e.runEngine({
+          command: "performance",
+          input: filePath,
+          mapping: mappingPath,
+          config: configPath,
+          out: perfOut,
+          checkSummary: checkSummaryPath,
+        });
+        if (perfResult.ok && perfResult.data) {
+          setPerformanceResult(perfResult.data as PerformanceOutput);
+        } else {
+          setPerformanceResult(null);
+        }
+      } catch {
+        setPerformanceResult(null);
       }
 
       setStep("results");
@@ -382,6 +408,7 @@ export function App() {
     setRangeRules([]);
     setSummaryResult(null);
     setCheckResult(null);
+    setPerformanceResult(null);
     setError(null);
     setNotice(null);
     setExportMessage(null);
@@ -437,6 +464,7 @@ export function App() {
             profileResult={profileResult}
             summaryResult={summaryResult}
             checkResult={checkResult}
+            performanceResult={performanceResult}
             onStartOver={handleStartOver}
             onExportReport={handleExportReport}
             onExportFlags={handleExportFlags}

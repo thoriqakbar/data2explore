@@ -30,7 +30,7 @@ function createWindow(): void {
   }
 }
 
-type EngineCommand = "profile" | "summarize" | "check" | "report";
+type EngineCommand = "profile" | "summarize" | "check" | "report" | "performance";
 
 type RunEnginePayload = {
   command: EngineCommand;
@@ -43,6 +43,7 @@ type RunEnginePayload = {
   config?: string;
   priorFlags?: string;
   appVersion?: string;
+  checkSummary?: string;
 };
 
 ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
@@ -79,6 +80,7 @@ ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
   if (payload.checks) args.push("--checks", payload.checks);
   if (payload.priorFlags) args.push("--prior-flags", resolveUserPath(payload.priorFlags));
   if (payload.appVersion) args.push("--app-version", payload.appVersion);
+  if (payload.checkSummary) args.push("--check-summary", resolveUserPath(payload.checkSummary));
 
   return new Promise<{ ok: boolean; stdout: string; stderr: string; data?: unknown }>(
     (resolve) => {

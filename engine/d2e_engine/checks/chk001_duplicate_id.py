@@ -33,32 +33,29 @@ def run(
 
     # Find values that appear more than once (excluding NaN)
     counts = df[id_col].value_counts()
-    duplicate_values = set(counts[counts > 1].index)
+    duplicates = counts[counts > 1]
 
-    if not duplicate_values:
+    if duplicates.empty:
         return []
 
     flags: list[FlagRow] = []
-    for idx, row in df.iterrows():
-        val = row[id_col]
-        # Skip NaN — missingness is handled by CHK-002
-        if pd.isna(val):
-            continue
-        if val in duplicate_values:
-            flags.append(
-                build_flag_row(
-                    run_id=run_id,
-                    check_id=CHECK_ID,
-                    check_name=CHECK_NAME,
-                    severity=SEVERITY,
-                    id=val,
-                    enumerator_id=row.get(enum_col, "") if enum_col else "",
-                    module=row.get(module_col, "") if module_col else "",
-                    column_name=id_col,
-                    observed_value=val,
-                    rule_reference="id appears >1 time",
-                    message=f"Duplicate ID: {val} (count={int(counts[val])})",
-                )
+    for val, count in duplicates.items():
+        # Pick the first occurrence to grab enumerator/module context
+        first_row = df.loc[df[id_col] == val].iloc[0]
+        flags.append(
+            build_flag_row(
+                run_id=run_id,
+                check_id=CHECK_ID,
+                check_name=CHECK_NAME,
+                severity=SEVERITY,
+                id=val,
+                enumerator_id=first_row.get(enum_col, "") if enum_col else "",
+                module=first_row.get(module_col, "") if module_col else "",
+                column_name=id_col,
+                observed_value=val,
+                rule_reference="id appears >1 time",
+                message=f"Duplicate ID: {val} (count={int(count)})",
             )
+        )
 
     return flags

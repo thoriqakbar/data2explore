@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 REQUIRED_MAPPING_FIELDS = ("id", "enumerator_id", "survey_date")
@@ -29,6 +30,21 @@ def summarize_numeric(df: pd.DataFrame) -> list[dict[str, Any]]:
     numeric_cols = df.select_dtypes(include=["number"]).columns
     for col in sorted(numeric_cols):
         series = df[col].dropna()
+
+        if len(series):
+            percentiles_dict: dict[str, float] | None = {
+                f"p{int(q * 100)}": float(series.quantile(q))
+                for q in [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
+            }
+            counts, bin_edges = np.histogram(series.values, bins=20)
+            histogram: list[dict[str, Any]] | None = [
+                {"bin_start": float(bin_edges[i]), "bin_end": float(bin_edges[i + 1]), "count": int(counts[i])}
+                for i in range(len(counts))
+            ]
+        else:
+            percentiles_dict = None
+            histogram = None
+
         rows.append(
             {
                 "variable": str(col),
@@ -37,6 +53,8 @@ def summarize_numeric(df: pd.DataFrame) -> list[dict[str, Any]]:
                 "std_dev": float(series.std()) if len(series) > 1 else None,
                 "min": float(series.min()) if len(series) else None,
                 "max": float(series.max()) if len(series) else None,
+                "percentiles": percentiles_dict,
+                "histogram": histogram,
             }
         )
     return rows
