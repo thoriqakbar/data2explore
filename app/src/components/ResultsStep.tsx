@@ -3,13 +3,15 @@ import type { CheckOutput, PerformanceOutput, ProfileOutput, SummaryOutput } fro
 import { SurveyPerformanceTab } from "./tabs/SurveyPerformanceTab";
 import { SummaryDistributionsTab } from "./tabs/SummaryDistributionsTab";
 import { DataQualityTab } from "./tabs/DataQualityTab";
+import { OverviewTab } from "./tabs/OverviewTab";
 
-type TabId = "performance" | "summary" | "quality";
+type TabId = "performance" | "summary" | "quality" | "overview";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "performance", label: "Survey Performance" },
   { id: "summary", label: "Summary & Distributions" },
   { id: "quality", label: "Data Quality" },
+  { id: "overview", label: "Overview" },
 ];
 
 interface Props {
@@ -79,6 +81,9 @@ export function ResultsStep({
         )}
         {activeTab === "quality" && (
           <DataQualityTab checkResult={checkResult} onExportFlags={onExportFlags} initialEnumerator={linkedEnumerator} />
+        )}
+        {activeTab === "overview" && (
+          <OverviewTab checkResult={checkResult} performanceResult={performanceResult} onNavigateToPerformance={() => setActiveTab("performance")} />
         )}
       </div>
 
