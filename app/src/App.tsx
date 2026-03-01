@@ -1,5 +1,13 @@
-import { useState, useCallback } from "react";
-import type { MappingConfig, ProfileOutput, SummaryOutput, CheckOutput, RangeRule } from "../../shared/index";
+import { useCallback, useState } from "react";
+import type {
+  CheckOutput,
+  MappingConfig,
+  ProfileOutput,
+  ProjectConfig,
+  RangeRule,
+  RunMetadata,
+  SummaryOutput,
+} from "../../shared/index";
 import { Stepper } from "./components/Stepper";
 import { ImportStep } from "./components/ImportStep";
 import { MappingStep } from "./components/MappingStep";
@@ -9,11 +17,23 @@ import { ResultsStep } from "./components/ResultsStep";
 
 type Step = "import" | "mapping" | "rules" | "running" | "results";
 
+type RunContext = {
+  lastCheckOutDir: string | null;
+  lastConfigSnapshot: ProjectConfig | null;
+};
+
+type LoadedProjectConfig = {
+  config: ProjectConfig;
+  warning: string | null;
+};
+
+const APP_VERSION = "0.1.0";
+
 const MAPPING_FIELDS: (keyof MappingConfig)[] = [
   "id",
   "enumerator_id",
   "survey_date",
-  "module"
+  "module",
 ];
 
 function autoGuessMapping(columns: string[]): MappingConfig {
@@ -26,6 +46,74 @@ function autoGuessMapping(columns: string[]): MappingConfig {
   return mapping;
 }
 
+function sanitizeLoadedConfig(raw: unknown, profileResult: ProfileOutput | null): LoadedProjectConfig {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Configuration file must contain a JSON object.");
+  }
+
+  const candidate = raw as {
+    version?: unknown;
+    mapping?: unknown;
+    range_rules?: unknown;
+  };
+
+  if (candidate.version !== "1") {
+    throw new Error("Unsupported configuration version.");
+  }
+
+  const columns = new Set(profileResult?.schema_profile.columns.map((column) => column.name) ?? []);
+  const numericColumns = new Set(
+    (profileResult?.schema_profile.columns ?? [])
+      .filter((column) => /int|float/.test(column.dtype))
+      .map((column) => column.name)
+  );
+
+  const warnings: string[] = [];
+  const mappingInput = candidate.mapping && typeof candidate.mapping === "object"
+    ? candidate.mapping as Record<string, unknown>
+    : {};
+
+  const mapping: MappingConfig = {};
+  for (const field of MAPPING_FIELDS) {
+    const value = mappingInput[field];
+    if (typeof value !== "string" || value.trim() === "") continue;
+    if (columns.size > 0 && !columns.has(value)) {
+      warnings.push(`Dropped mapping for "${field}" because column "${value}" is missing in this dataset.`);
+      continue;
+    }
+    mapping[field] = value;
+  }
+
+  const rulesInput = Array.isArray(candidate.range_rules) ? candidate.range_rules : [];
+  const range_rules: RangeRule[] = [];
+  for (const rule of rulesInput) {
+    if (!rule || typeof rule !== "object") continue;
+    const record = rule as Record<string, unknown>;
+    const column = typeof record.column === "string" ? record.column : "";
+    if (!column) continue;
+    if (columns.size > 0 && !columns.has(column)) {
+      warnings.push(`Dropped range rule for "${column}" because the column is missing in this dataset.`);
+      continue;
+    }
+    if (numericColumns.size > 0 && !numericColumns.has(column)) {
+      warnings.push(`Dropped range rule for "${column}" because it is not numeric in this dataset.`);
+      continue;
+    }
+    const min = typeof record.min === "number" ? record.min : null;
+    const max = typeof record.max === "number" ? record.max : null;
+    range_rules.push({ column, min, max });
+  }
+
+  return {
+    config: {
+      version: "1",
+      mapping,
+      range_rules,
+    },
+    warning: warnings.length > 0 ? warnings.join(" ") : null,
+  };
+}
+
 export function App() {
   const [step, setStep] = useState<Step>("import");
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -36,22 +124,31 @@ export function App() {
   const [rangeRules, setRangeRules] = useState<RangeRule[]>([]);
   const [runningMessage, setRunningMessage] = useState("Running summary analysis...");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [runContext, setRunContext] = useState<RunContext>({
+    lastCheckOutDir: null,
+    lastConfigSnapshot: null,
+  });
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   const handleSelectFile = useCallback(async () => {
     setError(null);
+    setNotice(null);
     try {
       const selected = await window.d2e.selectFile();
       if (!selected) return;
 
       setFilePath(selected);
       setProfileResult(null);
+      setSummaryResult(null);
+      setCheckResult(null);
 
-      // Auto-run profile
       const tempOut = selected + ".d2e-profile.json";
       const result = await window.d2e.runEngine({
         command: "profile",
         input: selected,
-        out: tempOut
+        out: tempOut,
       });
 
       if (!result.ok) {
@@ -62,46 +159,97 @@ export function App() {
       const profile = result.data as ProfileOutput;
       setProfileResult(profile);
 
-      // Auto-guess mapping from column names
-      const columnNames = profile.schema_profile.columns.map((c) => c.name);
-      setMapping(autoGuessMapping(columnNames));
+      const autoMapping = autoGuessMapping(profile.schema_profile.columns.map((c) => c.name));
+      if (runContext.lastConfigSnapshot) {
+        try {
+          const loaded = sanitizeLoadedConfig(runContext.lastConfigSnapshot, profile);
+          setMapping({ ...autoMapping, ...loaded.config.mapping });
+          setRangeRules(loaded.config.range_rules);
+          if (loaded.warning) setNotice(loaded.warning);
+        } catch {
+          setMapping(autoMapping);
+          setRangeRules([]);
+        }
+      } else {
+        setMapping(autoMapping);
+        setRangeRules([]);
+      }
+
       setStep("mapping");
     } catch (err) {
       const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
       setError(`Failed to select file: ${msg}`);
     }
-  }, []);
+  }, [runContext.lastConfigSnapshot]);
 
   const handleConfirmMapping = useCallback(() => {
     setStep("rules");
   }, []);
 
+  const handleLoadConfig = useCallback(async () => {
+    try {
+      setError(null);
+      setNotice(null);
+      const raw = await window.d2e.loadConfig();
+      if (!raw) return;
+      const loaded = sanitizeLoadedConfig(raw, profileResult);
+      setMapping(loaded.config.mapping);
+      setRangeRules(loaded.config.range_rules);
+      setRunContext((current) => ({ ...current, lastConfigSnapshot: loaded.config }));
+      setNotice(loaded.warning ?? "Configuration loaded.");
+    } catch (err) {
+      setError(`Failed to load configuration: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [profileResult]);
+
+  const handleSaveConfig = useCallback(async () => {
+    try {
+      setError(null);
+      setNotice(null);
+      const config: ProjectConfig = {
+        version: "1",
+        mapping,
+        range_rules: rangeRules,
+      };
+      const savePath = await window.d2e.saveConfig(config);
+      if (!savePath) return;
+      setRunContext((current) => ({ ...current, lastConfigSnapshot: config }));
+      setNotice(`Configuration saved to ${savePath}`);
+    } catch (err) {
+      setError(`Failed to save configuration: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [mapping, rangeRules]);
+
   const handleRunAnalysis = useCallback(async () => {
     if (!filePath) return;
     setStep("running");
     setError(null);
+    setNotice(null);
     setRunningMessage("Running summary analysis...");
 
     try {
-      // Strip undefined optional fields before writing
       const cleanMapping = Object.fromEntries(
-        Object.entries(mapping).filter(([, v]) => v !== undefined && v !== "")
+        Object.entries(mapping).filter(([, value]) => value !== undefined && value !== "")
       );
       const mappingPath = await window.d2e.writeTempMapping(cleanMapping);
 
-      // Write config with range rules if any are defined
+      const projectConfig: ProjectConfig = {
+        version: "1",
+        mapping,
+        range_rules: rangeRules,
+      };
+
       let configPath: string | undefined;
       if (rangeRules.length > 0) {
         configPath = await window.d2e.writeTempConfig({ range_rules: rangeRules });
       }
 
-      // Phase 1: Summarize
       const tempOut = filePath + ".d2e-summary.json";
       const sumResult = await window.d2e.runEngine({
         command: "summarize",
         input: filePath,
         mapping: mappingPath,
-        out: tempOut
+        out: tempOut,
       });
 
       if (!sumResult.ok) {
@@ -111,23 +259,38 @@ export function App() {
       }
       setSummaryResult(sumResult.data as SummaryOutput);
 
-      // Phase 2: Check
       setRunningMessage("Running HFC checks...");
       const outDir = filePath + ".d2e-checks";
+      const priorFlags = runContext.lastCheckOutDir ? `${runContext.lastCheckOutDir}/flags.csv` : undefined;
       const chkResult = await window.d2e.runEngine({
         command: "check",
         input: filePath,
         mapping: mappingPath,
         config: configPath,
-        outDir
+        outDir,
+        priorFlags,
+        appVersion: APP_VERSION,
       });
 
       if (chkResult.ok && chkResult.data) {
-        const data = chkResult.data as { flags: CheckOutput["flags"]; summary: CheckOutput["summary"] };
-        setCheckResult({ ok: true, flags: data.flags, summary: data.summary });
+        const data = chkResult.data as {
+          flags: CheckOutput["flags"];
+          summary: CheckOutput["summary"];
+          run_metadata: RunMetadata;
+        };
+        setCheckResult({
+          ok: true,
+          flags: data.flags,
+          summary: data.summary,
+          run_metadata: data.run_metadata,
+        });
+        setRunContext({
+          lastCheckOutDir: outDir,
+          lastConfigSnapshot: projectConfig,
+        });
       } else {
-        // Non-fatal: show results without checks
         setCheckResult(null);
+        setRunContext((current) => ({ ...current, lastConfigSnapshot: projectConfig }));
       }
 
       setStep("results");
@@ -135,42 +298,50 @@ export function App() {
       setError(String(err));
       setStep("rules");
     }
-  }, [filePath, mapping, rangeRules]);
-
-  const [exporting, setExporting] = useState(false);
-  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  }, [filePath, mapping, rangeRules, runContext.lastCheckOutDir]);
 
   const handleExportReport = useCallback(async () => {
     if (!profileResult || !summaryResult || !filePath) return;
     setExporting(true);
     setExportMessage(null);
     try {
-      // Build combined report data from current state
       const reportData = {
         profile: profileResult.schema_profile,
         summary_stats: summaryResult.summary_stats,
-        check_summary: checkResult?.summary ?? { run_id: "", total_flags: 0, by_severity: {}, by_check: {}, skipped_checks: [] },
+        check_summary: checkResult?.summary ?? {
+          run_id: "",
+          total_flags: 0,
+          by_severity: {},
+          by_check: {},
+          by_enumerator: {},
+          has_prior_run: false,
+          new_flags_count: 0,
+          resolved_flags_count: 0,
+          persisting_flags_count: 0,
+          skipped_checks: [],
+        },
         flags: checkResult?.flags ?? [],
-        run_metadata: {
+        run_metadata: checkResult?.run_metadata ?? {
+          run_id: "",
           dataset_path: filePath,
+          dataset_hash: "",
+          config_hash: "",
+          engine_version: APP_VERSION,
+          app_version: APP_VERSION,
+          checks_requested: "all",
           timestamp: new Date().toISOString(),
-          engine_version: "0.1.0",
         },
         mapping,
       };
 
-      // Write combined JSON to temp file
-      const tempPath = await window.d2e.writeTempMapping(reportData as unknown as Record<string, string>);
-
-      // Show save dialog
+      const tempPath = await window.d2e.writeTempConfig(reportData as Record<string, unknown>);
       const fileName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") ?? "d2e";
-      const savePath = await window.d2e.saveFile(`${fileName}-hfc-report.xlsx`);
+      const savePath = await window.d2e.saveFile(`${fileName}-hfc-report.xlsx`, "xlsx");
       if (!savePath) {
         setExporting(false);
         return;
       }
 
-      // Generate report via engine
       const result = await window.d2e.runEngine({
         command: "report",
         data: tempPath,
@@ -189,6 +360,20 @@ export function App() {
     }
   }, [filePath, profileResult, summaryResult, checkResult, mapping]);
 
+  const handleExportFlags = useCallback(async (content: string) => {
+    if (!filePath) return;
+    setExportMessage(null);
+    try {
+      const fileName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") ?? "d2e";
+      const savePath = await window.d2e.saveFile(`${fileName}-flags.csv`, "csv");
+      if (!savePath) return;
+      await window.d2e.writeFile(savePath, content);
+      setExportMessage(`Flags exported to ${savePath}`);
+    } catch (err) {
+      setExportMessage(`Flag export failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [filePath]);
+
   const handleStartOver = useCallback(() => {
     setStep("import");
     setFilePath(null);
@@ -198,6 +383,7 @@ export function App() {
     setSummaryResult(null);
     setCheckResult(null);
     setError(null);
+    setNotice(null);
     setExportMessage(null);
   }, []);
 
@@ -228,6 +414,7 @@ export function App() {
           onMappingChange={setMapping}
           onConfirm={handleConfirmMapping}
           onBack={() => setStep("import")}
+          onLoadConfig={handleLoadConfig}
         />
       )}
 
@@ -238,6 +425,7 @@ export function App() {
           onRulesChange={setRangeRules}
           onConfirm={handleRunAnalysis}
           onBack={() => setStep("mapping")}
+          onSaveConfig={handleSaveConfig}
         />
       )}
 
@@ -251,11 +439,12 @@ export function App() {
             checkResult={checkResult}
             onStartOver={handleStartOver}
             onExportReport={handleExportReport}
+            onExportFlags={handleExportFlags}
             exporting={exporting}
           />
           {exportMessage && (
             <div className={`mt-4 p-3 rounded-lg text-sm ${
-              exportMessage.startsWith("Report saved")
+              exportMessage.startsWith("Report saved") || exportMessage.startsWith("Flags exported")
                 ? "bg-green-50 border border-green-200 text-green-800"
                 : "bg-red-50 border border-red-200 text-red-700"
             }`}>
@@ -263,6 +452,12 @@ export function App() {
             </div>
           )}
         </>
+      )}
+
+      {step !== "import" && notice && (
+        <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          {notice}
+        </div>
       )}
 
       {step !== "import" && error && (

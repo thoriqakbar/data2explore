@@ -21,6 +21,7 @@ workspace/
 *.d2e-profile.json
 *.d2e-summary.json
 samples/check_output/
+samples/tmp-check-output/
 *.d2e-checks/
 
 # OS / editor

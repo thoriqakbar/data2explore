@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import type { FileFilter } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -40,6 +41,8 @@ type RunEnginePayload = {
   checks?: string;
   data?: string;
   config?: string;
+  priorFlags?: string;
+  appVersion?: string;
 };
 
 ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
@@ -74,6 +77,8 @@ ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
   if (payload.mapping) args.push("--mapping", resolveUserPath(payload.mapping));
   if (payload.config) args.push("--config", resolveUserPath(payload.config));
   if (payload.checks) args.push("--checks", payload.checks);
+  if (payload.priorFlags) args.push("--prior-flags", resolveUserPath(payload.priorFlags));
+  if (payload.appVersion) args.push("--app-version", payload.appVersion);
 
   return new Promise<{ ok: boolean; stdout: string; stderr: string; data?: unknown }>(
     (resolve) => {
@@ -98,9 +103,10 @@ ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
           try {
             if (isCheck) {
               const outDir = resolveUserPath(payload.outDir!);
-              const [flagsRaw, summaryRaw] = await Promise.all([
+              const [flagsRaw, summaryRaw, metadataRaw] = await Promise.all([
                 readFile(path.join(outDir, "flags.json"), "utf-8"),
-                readFile(path.join(outDir, "summary.json"), "utf-8")
+                readFile(path.join(outDir, "summary.json"), "utf-8"),
+                readFile(path.join(outDir, "run_metadata.json"), "utf-8"),
               ]);
               resolve({
                 ok: true,
@@ -108,7 +114,8 @@ ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
                 stderr,
                 data: {
                   flags: JSON.parse(flagsRaw),
-                  summary: JSON.parse(summaryRaw)
+                  summary: JSON.parse(summaryRaw),
+                  run_metadata: JSON.parse(metadataRaw),
                 }
               });
             } else {
@@ -142,14 +149,17 @@ ipcMain.handle("dialog:select-file", async (event) => {
   return result.filePaths[0];
 });
 
-ipcMain.handle("dialog:save-file", async (event, defaultName?: string) => {
+ipcMain.handle("dialog:save-file", async (event, defaultName?: string, fileType: "xlsx" | "csv" | "json" = "xlsx") => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return null;
+  const filtersByType: Record<"xlsx" | "csv" | "json", FileFilter[]> = {
+    xlsx: [{ name: "Excel Workbook", extensions: ["xlsx"] }],
+    csv: [{ name: "CSV", extensions: ["csv"] }],
+    json: [{ name: "JSON", extensions: ["json"] }],
+  };
   const result = await dialog.showSaveDialog(win, {
     defaultPath: defaultName ?? "d2e-report.xlsx",
-    filters: [
-      { name: "Excel Workbook", extensions: ["xlsx"] }
-    ]
+    filters: filtersByType[fileType],
   });
   if (result.canceled) return null;
   return result.filePath;
@@ -176,6 +186,37 @@ ipcMain.handle(
     return tempPath;
   }
 );
+
+ipcMain.handle("config:save", async (event, config: unknown) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return null;
+  const result = await dialog.showSaveDialog(win, {
+    title: "Save Configuration",
+    defaultPath: "d2e-config.json",
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+  if (result.canceled || !result.filePath) return null;
+  await writeFile(result.filePath, JSON.stringify(config, null, 2), "utf-8");
+  return result.filePath;
+});
+
+ipcMain.handle("config:load", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return null;
+  const result = await dialog.showOpenDialog(win, {
+    title: "Load Configuration",
+    filters: [{ name: "JSON", extensions: ["json"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const raw = await readFile(result.filePaths[0], "utf-8");
+  return JSON.parse(raw);
+});
+
+ipcMain.handle("file:write", async (_event, filePath: string, content: string) => {
+  await writeFile(filePath, content, "utf-8");
+  return true;
+});
 
 app.whenReady().then(() => {
   createWindow();

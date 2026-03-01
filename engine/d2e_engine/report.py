@@ -69,11 +69,12 @@ def _write_summary_sheet(wb: Workbook, data: dict) -> None:
     _header_row(ws, row, ["Severity", "Count"])
     row += 1
     by_sev = summary.get("by_severity", {})
-    for sev in ("Critical", "Warning"):
+    for sev in ("critical", "warning"):
         count = by_sev.get(sev, 0)
-        ws.cell(row=row, column=1, value=sev)
+        label = sev.title()
+        ws.cell(row=row, column=1, value=label)
         ws.cell(row=row, column=2, value=count)
-        fill = _FILL_CRITICAL if sev == "Critical" else _FILL_WARNING
+        fill = _FILL_CRITICAL if sev == "critical" else _FILL_WARNING
         ws.cell(row=row, column=1).fill = fill
         ws.cell(row=row, column=2).fill = fill
         row += 1

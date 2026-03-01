@@ -71,10 +71,12 @@ def build_summary_json(
         current_keys = {_flag_key(f) for f in flags}
         prior_keys = {_flag_key(f) for f in prior_flags}
 
+        summary["has_prior_run"] = True
         summary["new_flags_count"] = len(current_keys - prior_keys)
         summary["resolved_flags_count"] = len(prior_keys - current_keys)
         summary["persisting_flags_count"] = len(current_keys & prior_keys)
     else:
+        summary["has_prior_run"] = False
         summary["new_flags_count"] = len(flags)
         summary["resolved_flags_count"] = 0
         summary["persisting_flags_count"] = 0

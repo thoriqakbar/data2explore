@@ -6,6 +6,7 @@ interface Props {
   onRulesChange: (rules: RangeRule[]) => void;
   onConfirm: () => void;
   onBack: () => void;
+  onSaveConfig?: () => void;
 }
 
 function getNumericColumns(profile: ProfileOutput): string[] {
@@ -20,6 +21,7 @@ export function RulesStep({
   onRulesChange,
   onConfirm,
   onBack,
+  onSaveConfig,
 }: Props) {
   const numericColumns = getNumericColumns(profileResult);
   const usedColumns = new Set(rangeRules.map((r) => r.column));
@@ -167,6 +169,14 @@ export function RulesStep({
       )}
 
       <div className="flex gap-3">
+        {onSaveConfig && (
+          <button
+            onClick={onSaveConfig}
+            className="px-4 py-2 border border-blue-300 rounded-lg text-sm text-blue-700 hover:bg-blue-50 transition-colors"
+          >
+            Save Config
+          </button>
+        )}
         <button
           onClick={onBack}
           className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"

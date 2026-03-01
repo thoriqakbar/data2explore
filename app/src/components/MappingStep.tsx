@@ -18,6 +18,7 @@ interface Props {
   onMappingChange: (mapping: MappingConfig) => void;
   onConfirm: () => void;
   onBack: () => void;
+  onLoadConfig?: () => void;
 }
 
 export function MappingStep({
@@ -25,7 +26,8 @@ export function MappingStep({
   mapping,
   onMappingChange,
   onConfirm,
-  onBack
+  onBack,
+  onLoadConfig,
 }: Props) {
   const columns = profileResult.schema_profile.columns.map((c) => c.name);
   const selectedValues = ALL_FIELDS.map((f) => mapping[f.key]).filter(Boolean);
@@ -94,6 +96,14 @@ export function MappingStep({
       )}
 
       <div className="flex gap-3">
+        {onLoadConfig && (
+          <button
+            onClick={onLoadConfig}
+            className="px-4 py-2 border border-blue-300 rounded-lg text-sm text-blue-700 hover:bg-blue-50 transition-colors"
+          >
+            Load Config
+          </button>
+        )}
         <button
           onClick={onBack}
           className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"

@@ -136,3 +136,12 @@ Living document tracking key design decisions. Newest entries at the bottom.
 **Context:** Need a "supervisor dashboard" check that flags enumerators with disproportionately many issues across all other checks. This is a meta-check that depends on prior check results.
 **Decision:** CHK-009 runs last in the check registry. The runner injects `_prior_flags_for_aggregation` into the config dict before calling CHK-009. The check counts flags per enumerator and compares against the median using `enumerator_anomaly_deviation` (default 2.0). Minimum 5 flags to trigger.
 **Reasoning:** Injecting through config keeps the `run(df, mapping, config, run_id)` interface uniform — no special runner code path for meta-checks. The `_` prefix convention signals internal use. Running last ensures all prior flags are available. Median-based deviation is robust to outliers in flag counts themselves.
+
+---
+
+## 016 — Session-scoped supervisor pipeline with explicit rerun summary contract
+
+**Date:** 2026-02
+**Context:** The app already had a two-phase `summarize -> check` run flow, but the renderer had no stable way to distinguish first run vs rerun, no lightweight persistence for mapping/rules, and no supervisor-friendly filtered export path.
+**Decision:** Keep rerun comparison session-scoped in the renderer using the previous run's `flags.csv` path, add `has_prior_run` plus stable delta counts to `summary.json`, treat mapping + range-rule save/load as user-managed JSON config rather than project persistence, and export filtered flags as a renderer-composed CSV artifact.
+**Reasoning:** This delivers the operational supervisor workflow without introducing a project database. A stable summary contract is simpler than inferring state from optional fields. Config save/load removes repeated setup work while preserving the stateless app model from Decision 006. Filtered CSV export belongs in the renderer because it depends on transient UI state rather than raw engine output.

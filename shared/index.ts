@@ -62,17 +62,40 @@ export interface CheckSummary {
   total_flags: number;
   by_severity: Record<string, number>;
   by_check: Record<string, number>;
+  by_enumerator: Record<string, number>;
+  has_prior_run: boolean;
+  new_flags_count: number;
+  resolved_flags_count: number;
+  persisting_flags_count: number;
   skipped_checks: Array<{ check_id: string; reason: string }>;
+}
+
+export interface RunMetadata {
+  run_id: string;
+  dataset_path: string;
+  dataset_hash: string;
+  config_hash: string;
+  engine_version: string;
+  app_version: string;
+  checks_requested: string[] | "all";
+  timestamp: string;
 }
 
 export interface CheckOutput {
   ok: boolean;
   flags: FlagRow[];
   summary: CheckSummary;
+  run_metadata: RunMetadata;
 }
 
 export interface RangeRule {
   column: string;
   min?: number | null;
   max?: number | null;
+}
+
+export interface ProjectConfig {
+  version: "1";
+  mapping: MappingConfig;
+  range_rules: RangeRule[];
 }
