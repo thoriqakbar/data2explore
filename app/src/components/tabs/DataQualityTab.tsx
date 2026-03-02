@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CheckOutput, FlagRow } from "../../../../shared/index";
+import type { CheckOutput, FlagDecision, FlagRow } from "../../../../shared/index";
 import { buildProblemSections, categoryForCheckId } from "../results/problemReview";
 import { ProblemReviewSection } from "../ProblemReviewSection";
 
@@ -9,6 +9,11 @@ interface Props {
   checkResult: CheckOutput | null | undefined;
   onExportFlags?: (content: string) => void;
   initialEnumerator?: string | null;
+  onResolveFlags?: (flags: FlagRow[]) => void;
+  onUnresolveFlags?: (flags: FlagRow[]) => void;
+  onImportReviewedCsv?: () => void;
+  suppressedFlags?: FlagRow[];
+  decisions?: Record<string, FlagDecision>;
 }
 
 function csvEscape(value: unknown): string {
@@ -25,10 +30,11 @@ function checkLabel(checkId: string): string {
   return categoryForCheckId(checkId);
 }
 
-export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }: Props) {
+export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, onResolveFlags, onUnresolveFlags, onImportReviewedCsv, suppressedFlags, decisions }: Props) {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [enumeratorFilter, setEnumeratorFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
+  const [showDecided, setShowDecided] = useState(false);
 
   useEffect(() => {
     if (initialEnumerator) {
@@ -37,6 +43,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
   }, [initialEnumerator]);
 
   const totalUnfilteredFlags = checkResult?.summary.total_flags ?? 0;
+  const totalSuppressed = checkResult?.summary.suppressed_count ?? 0;
   const skippedChecks = checkResult?.summary.skipped_checks ?? [];
   const allFlags = checkResult?.flags ?? [];
 
@@ -148,7 +155,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
       </div>
 
       {skippedChecks.length > 0 && (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+        <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
           <p className="font-medium mb-1">Skipped checks</p>
           <ul className="list-disc list-inside space-y-0.5 text-xs">
             {skippedChecks.map((s) => (
@@ -160,9 +167,81 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
         </div>
       )}
 
-      {totalUnfilteredFlags === 0 ? (
+      {totalSuppressed > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+            <span className="text-slate-600">
+              <span className="font-medium">{totalSuppressed}</span> flag{totalSuppressed === 1 ? "" : "s"} resolved
+              {checkResult.summary.total_before_suppression
+                ? ` (of ${checkResult.summary.total_before_suppression} total)`
+                : ""
+              }
+            </span>
+            <button
+              onClick={() => setShowDecided(prev => !prev)}
+              className="px-3 py-1 text-xs font-medium rounded-md bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors"
+            >
+              {showDecided ? "Hide resolved" : "Show resolved"}
+            </button>
+          </div>
+
+          {showDecided && suppressedFlags && suppressedFlags.length > 0 && (
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="px-4 py-2 bg-slate-50 border-b border-slate-200">
+                <h4 className="text-sm font-medium text-slate-700">Resolved Flags</h4>
+              </div>
+              <div className="overflow-x-auto overflow-y-auto max-h-64">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-white z-10">
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">ID</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Enumerator</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Check</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Column</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Value</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Message</th>
+                      <th className="text-right py-2 px-3 font-medium text-slate-500 text-xs"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {suppressedFlags.map((flag, i) => (
+                      <tr key={`sup-${flag.id}-${flag.check_id}-${flag.column_name}-${i}`} className="border-b border-slate-100 text-slate-500">
+                        <td className="py-2 px-3 font-mono text-xs">{flag.id || "\u2014"}</td>
+                        <td className="py-2 px-3 font-mono text-xs">{flag.enumerator_id || "\u2014"}</td>
+                        <td className="py-2 px-3 text-xs">
+                          <span className="font-medium">{flag.check_name}</span>
+                          <span className="block text-[10px] font-mono text-slate-400">{flag.check_id}</span>
+                        </td>
+                        <td className="py-2 px-3 font-mono text-xs">{flag.column_name || "\u2014"}</td>
+                        <td className="py-2 px-3 text-xs max-w-[100px] truncate" title={flag.observed_value}>{flag.observed_value || "\u2014"}</td>
+                        <td className="py-2 px-3 text-xs">{flag.message}</td>
+                        <td className="py-2 px-3 text-right">
+                          {onUnresolveFlags && (
+                            <button
+                              onClick={() => onUnresolveFlags([flag])}
+                              className="px-2 py-0.5 text-[11px] font-medium rounded bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                            >
+                              Unresolve
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {totalUnfilteredFlags === 0 && totalSuppressed === 0 ? (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 font-medium text-center">
           No issues found — all checks passed.
+        </div>
+      ) : totalUnfilteredFlags === 0 && totalSuppressed > 0 ? (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 font-medium text-center">
+          All remaining flags have been resolved.
         </div>
       ) : (
         <>
@@ -187,7 +266,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
                 <select
                   value={enumeratorFilter}
                   onChange={(event) => setEnumeratorFilter(event.target.value)}
-                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 >
                   <option value="all">All enumerators</option>
                   {enumerators.map((enumerator) => (
@@ -205,7 +284,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
                     type="date"
                     value={dateRange.from}
                     onChange={(event) => setDateRange((current) => ({ ...current, from: event.target.value }))}
-                    className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                   />
                 </label>
                 <label className="text-sm text-gray-700">
@@ -214,7 +293,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
                     type="date"
                     value={dateRange.to}
                     onChange={(event) => setDateRange((current) => ({ ...current, to: event.target.value }))}
-                    className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                   />
                 </label>
               </div>
@@ -231,6 +310,14 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
                     className="px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition-colors"
                   >
                     Clear Filters
+                  </button>
+                )}
+                {onImportReviewedCsv && (
+                  <button
+                    onClick={onImportReviewedCsv}
+                    className="px-3 py-1.5 border border-indigo-300 text-indigo-700 rounded-md hover:bg-indigo-50 font-medium transition-colors"
+                  >
+                    Import Reviewed CSV
                   </button>
                 )}
                 {onExportFlags && (
@@ -258,6 +345,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
                   key={section.key}
                   section={section}
                   defaultExpanded={index === 0}
+                  onResolveFlags={onResolveFlags}
                 />
               ))}
             </div>
@@ -271,12 +359,13 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
               </p>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-auto max-h-96 rounded">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b-2 border-gray-300">
                     <th className="text-left py-2 pr-3 font-medium text-gray-600">Check</th>
                     <th className="text-left py-2 pr-3 font-medium text-gray-600">Severity</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-600">ID</th>
                     <th className="text-left py-2 pr-3 font-medium text-gray-600">Enumerator</th>
                     <th className="text-left py-2 pr-3 font-medium text-gray-600">Column</th>
                     <th className="text-left py-2 pr-3 font-medium text-gray-600">Value</th>
@@ -299,6 +388,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator }
                           {flag.severity}
                         </span>
                       </td>
+                      <td className="py-2 pr-3 font-mono text-xs">{flag.id || "\u2014"}</td>
                       <td className="py-2 pr-3 font-mono text-xs">{flag.enumerator_id || "\u2014"}</td>
                       <td className="py-2 pr-3 font-mono text-xs">{flag.column_name || "\u2014"}</td>
                       <td className="py-2 pr-3 text-xs max-w-[120px] truncate" title={flag.observed_value}>

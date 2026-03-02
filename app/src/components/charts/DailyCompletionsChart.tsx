@@ -28,7 +28,7 @@ export function DailyCompletionsChart({ data }: Props) {
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
           <XAxis
             dataKey="date"
             tick={{ fontSize: 11 }}
@@ -47,7 +47,7 @@ export function DailyCompletionsChart({ data }: Props) {
             stroke="#6366f1"
           />
           <Tooltip
-            contentStyle={{ fontSize: 12 }}
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
             labelFormatter={(label) => `Date: ${String(label)}`}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -55,8 +55,8 @@ export function DailyCompletionsChart({ data }: Props) {
             yAxisId="left"
             dataKey="count"
             name="Daily"
-            fill="#3b82f6"
-            radius={[2, 2, 0, 0]}
+            fill="#a5b4fc"
+            radius={[3, 3, 0, 0]}
           />
           <Line
             yAxisId="right"

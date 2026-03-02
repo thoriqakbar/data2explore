@@ -60,8 +60,8 @@ def run(
     config: dict[str, Any],
     run_id: str,
 ) -> list[FlagRow]:
-    min_dur = config.get("min_duration_minutes", 5)
-    max_dur = config.get("max_duration_minutes", 120)
+    deviation_factor = config.get("duration_deviation_factor", 3.0)
+    min_obs = config.get("duration_min_observations", 5)
     heaping_multiple = config.get("heaping_multiple", 5)
     heaping_ceiling = config.get("heaping_ceiling", 15)
 
@@ -72,6 +72,21 @@ def run(
     id_col = mapping.get("id", "")
     enum_col = mapping.get("enumerator_id", "")
     module_col = mapping.get("module", "")
+
+    # Compute median & MAD from valid positive durations
+    valid = duration_series.dropna()
+    valid = valid[valid > 0]
+
+    use_relative = len(valid) >= min_obs
+    if use_relative:
+        median_dur = valid.median()
+        mad = (valid - median_dur).abs().median()
+        # If MAD is 0 (constant durations), skip relative detection
+        if mad == 0:
+            use_relative = False
+        else:
+            lower_bound = median_dur - deviation_factor * mad
+            upper_bound = median_dur + deviation_factor * mad
 
     flags: list[FlagRow] = []
 
@@ -87,12 +102,18 @@ def run(
             subtype = "impossible"
             severity = "Critical"
             message = f"Impossible duration: {num:.1f} minutes (must be > 0)"
-        elif num < min_dur:
+        elif use_relative and num < lower_bound:
             subtype = "short"
-            message = f"Short interview: {num:.1f} minutes (threshold: {min_dur})"
-        elif num > max_dur:
+            message = (
+                f"Unusually short: {num:.1f} min "
+                f"(median {median_dur:.1f}, threshold {lower_bound:.1f})"
+            )
+        elif use_relative and num > upper_bound:
             subtype = "long"
-            message = f"Long interview: {num:.1f} minutes (threshold: {max_dur})"
+            message = (
+                f"Unusually long: {num:.1f} min "
+                f"(median {median_dur:.1f}, threshold {upper_bound:.1f})"
+            )
         elif (
             heaping_multiple > 0
             and num <= heaping_ceiling

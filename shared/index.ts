@@ -77,6 +77,24 @@ export interface CheckSummary {
   resolved_flags_count: number;
   persisting_flags_count: number;
   skipped_checks: Array<{ check_id: string; reason: string }>;
+  suppressed_count?: number;
+  total_before_suppression?: number;
+}
+
+export interface FlagDecision {
+  status: "dismissed" | "open";
+  reason: string;
+  note: string;
+  observed_value_at_decision: string;
+  decided_at: string;
+  decided_by: string;
+}
+
+export interface DecisionsFile {
+  schema_version: number;
+  dataset_hash: string;
+  updated_at: string;
+  decisions: Record<string, FlagDecision>;
 }
 
 export interface RunMetadata {

@@ -220,6 +220,35 @@ ipcMain.handle("file:write", async (_event, filePath: string, content: string) =
   return true;
 });
 
+ipcMain.handle("decisions:load", async (_event, outDir: string) => {
+  const decisionsPath = path.join(outDir, "decisions.json");
+  try {
+    const raw = await readFile(decisionsPath, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle("decisions:save", async (_event, outDir: string, data: unknown) => {
+  const decisionsPath = path.join(outDir, "decisions.json");
+  await writeFile(decisionsPath, JSON.stringify(data, null, 2), "utf-8");
+  return true;
+});
+
+ipcMain.handle("decisions:import-csv", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return null;
+  const result = await dialog.showOpenDialog(win, {
+    title: "Import Reviewed CSV",
+    filters: [{ name: "CSV", extensions: ["csv"] }],
+    properties: ["openFile"],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  const content = await readFile(result.filePaths[0], "utf-8");
+  return content;
+});
+
 ipcMain.handle("app:sample-path", async () => {
   const repoRoot = path.resolve(__dirname, "../..");
   const samplePath = path.join(repoRoot, "samples", "sample_survey.csv");

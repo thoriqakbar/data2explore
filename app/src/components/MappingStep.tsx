@@ -69,7 +69,7 @@ export function MappingStep({
         <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1">
           {field.label}
           {recommended
-            ? <span className="text-blue-500 font-normal">(recommended)</span>
+            ? <span className="text-indigo-500 font-normal">(recommended)</span>
             : <span className="text-gray-400 font-normal">(optional)</span>}
           <button
             type="button"
@@ -90,7 +90,7 @@ export function MappingStep({
           onChange={(e) =>
             onMappingChange({ ...mapping, [field.key]: e.target.value || undefined })
           }
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
         >
           <option value="">— None —</option>
           {columnNames.map((col) => {
@@ -163,7 +163,7 @@ export function MappingStep({
               name="duration_mode"
               checked={durationMapping.mode === "column"}
               onChange={() => onDurationMappingChange({ ...durationMapping, mode: "column" })}
-              className="accent-blue-600"
+              className="accent-indigo-500"
             />
             I have a duration column
           </label>
@@ -173,7 +173,7 @@ export function MappingStep({
               <select
                 value={durationMapping.duration_column ?? ""}
                 onChange={(e) => onDurationMappingChange({ ...durationMapping, duration_column: e.target.value || undefined })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
               >
                 <option value="">— Select column —</option>
                 {columnNames.map((col) => (
@@ -187,7 +187,7 @@ export function MappingStep({
                     name="duration_unit"
                     checked={durationMapping.duration_unit !== "seconds"}
                     onChange={() => onDurationMappingChange({ ...durationMapping, duration_unit: "minutes" })}
-                    className="accent-blue-600"
+                    className="accent-indigo-500"
                   />
                   Minutes
                 </label>
@@ -197,7 +197,7 @@ export function MappingStep({
                     name="duration_unit"
                     checked={durationMapping.duration_unit === "seconds"}
                     onChange={() => onDurationMappingChange({ ...durationMapping, duration_unit: "seconds" })}
-                    className="accent-blue-600"
+                    className="accent-indigo-500"
                   />
                   Seconds
                 </label>
@@ -216,7 +216,7 @@ export function MappingStep({
               name="duration_mode"
               checked={durationMapping.mode === "start_end"}
               onChange={() => onDurationMappingChange({ ...durationMapping, mode: "start_end" })}
-              className="accent-blue-600"
+              className="accent-indigo-500"
             />
             I have start and end time columns
           </label>
@@ -228,7 +228,7 @@ export function MappingStep({
                 <select
                   value={durationMapping.start_column ?? ""}
                   onChange={(e) => onDurationMappingChange({ ...durationMapping, start_column: e.target.value || undefined })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 >
                   <option value="">— Select column —</option>
                   {columnNames.map((col) => (
@@ -241,7 +241,7 @@ export function MappingStep({
                 <select
                   value={durationMapping.end_column ?? ""}
                   onChange={(e) => onDurationMappingChange({ ...durationMapping, end_column: e.target.value || undefined })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 >
                   <option value="">— Select column —</option>
                   {columnNames.map((col) => (
@@ -258,7 +258,7 @@ export function MappingStep({
               name="duration_mode"
               checked={durationMapping.mode === "none"}
               onChange={() => onDurationMappingChange({ mode: "none" })}
-              className="accent-blue-600"
+              className="accent-indigo-500"
             />
             No duration data
             <span className="text-xs text-gray-400">(skips CHK-010)</span>
@@ -270,21 +270,21 @@ export function MappingStep({
         {onLoadConfig && (
           <button
             onClick={onLoadConfig}
-            className="px-4 py-2 border border-blue-300 rounded-lg text-sm text-blue-700 hover:bg-blue-50 transition-colors"
+            className="btn-secondary px-4 py-2 border border-indigo-200 rounded-lg text-sm text-indigo-600 hover:bg-indigo-50"
           >
             Load Config
           </button>
         )}
         <button
           onClick={onBack}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="btn-secondary px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
         >
           Back
         </button>
         <button
           onClick={onConfirm}
           disabled={!anyFieldMapped || hasDuplicates}
-          className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
+          className="btn-primary px-5 py-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
         >
           Continue
         </button>

@@ -43,7 +43,7 @@ export function VariableHistogramChart({ histogram, mean, label }: Props) {
     <div className="h-52">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
           <XAxis
             dataKey="range"
             tick={{ fontSize: 10 }}
@@ -51,14 +51,14 @@ export function VariableHistogramChart({ histogram, mean, label }: Props) {
           />
           <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
           <Tooltip
-            contentStyle={{ fontSize: 12 }}
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
             labelFormatter={(_label, payload) => {
               const item = (payload as Array<{ payload?: { bin_start: number; bin_end: number } }>)?.[0]?.payload;
               if (!item) return label;
               return `${label}: ${item.bin_start.toFixed(2)} – ${item.bin_end.toFixed(2)}`;
             }}
           />
-          <Bar dataKey="count" fill="#6366f1" radius={[2, 2, 0, 0]} />
+          <Bar dataKey="count" fill="#818cf8" radius={[3, 3, 0, 0]} />
           {meanBinLabel != null && (
             <ReferenceLine
               x={meanBinLabel}

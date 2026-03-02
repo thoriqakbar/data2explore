@@ -164,7 +164,7 @@
       "median_duration": 35.0,
       "min_duration": -5.0,
       "max_duration": 352.0,
-      "flag_count": 78
+      "flag_count": 95
     },
     {
       "enumerator_id": "E07",
@@ -177,7 +177,7 @@
       "median_duration": 35.0,
       "min_duration": -3.0,
       "max_duration": 286.0,
-      "flag_count": 75
+      "flag_count": 89
     },
     {
       "enumerator_id": "E14",
@@ -190,7 +190,7 @@
       "median_duration": 35.0,
       "min_duration": -3.0,
       "max_duration": 340.0,
-      "flag_count": 52
+      "flag_count": 65
     },
     {
       "enumerator_id": "E03",
@@ -203,7 +203,7 @@
       "median_duration": 36.0,
       "min_duration": -1.0,
       "max_duration": 329.0,
-      "flag_count": 39
+      "flag_count": 52
     },
     {
       "enumerator_id": "E01",
@@ -216,7 +216,7 @@
       "median_duration": 35.0,
       "min_duration": 1.0,
       "max_duration": 66.0,
-      "flag_count": 19
+      "flag_count": 27
     },
     {
       "enumerator_id": "E02",
@@ -229,7 +229,7 @@
       "median_duration": 36.0,
       "min_duration": 11.0,
       "max_duration": 267.0,
-      "flag_count": 11
+      "flag_count": 24
     },
     {
       "enumerator_id": "E04",
@@ -242,7 +242,7 @@
       "median_duration": 36.0,
       "min_duration": 8.0,
       "max_duration": 60.0,
-      "flag_count": 7
+      "flag_count": 17
     },
     {
       "enumerator_id": "E05",
@@ -255,7 +255,7 @@
       "median_duration": 36.0,
       "min_duration": 5.0,
       "max_duration": 63.0,
-      "flag_count": 14
+      "flag_count": 23
     },
     {
       "enumerator_id": "E06",
@@ -268,7 +268,7 @@
       "median_duration": 35.0,
       "min_duration": 13.0,
       "max_duration": 254.0,
-      "flag_count": 15
+      "flag_count": 23
     },
     {
       "enumerator_id": "E08",
@@ -281,7 +281,7 @@
       "median_duration": 35.0,
       "min_duration": 8.0,
       "max_duration": 57.0,
-      "flag_count": 8
+      "flag_count": 14
     },
     {
       "enumerator_id": "E09",
@@ -294,7 +294,7 @@
       "median_duration": 36.0,
       "min_duration": 15.0,
       "max_duration": 59.0,
-      "flag_count": 8
+      "flag_count": 12
     },
     {
       "enumerator_id": "E10",
@@ -307,7 +307,7 @@
       "median_duration": 35.0,
       "min_duration": 1.0,
       "max_duration": 60.0,
-      "flag_count": 8
+      "flag_count": 21
     },
     {
       "enumerator_id": "E11",
@@ -320,7 +320,7 @@
       "median_duration": 35.0,
       "min_duration": 11.0,
       "max_duration": 310.0,
-      "flag_count": 19
+      "flag_count": 28
     },
     {
       "enumerator_id": "E12",
@@ -333,7 +333,7 @@
       "median_duration": 36.0,
       "min_duration": -2.0,
       "max_duration": 68.0,
-      "flag_count": 8
+      "flag_count": 17
     },
     {
       "enumerator_id": "E13",
@@ -346,7 +346,7 @@
       "median_duration": 36.0,
       "min_duration": 17.0,
       "max_duration": 61.0,
-      "flag_count": 5
+      "flag_count": 9
     },
     {
       "enumerator_id": "E15",
@@ -359,7 +359,7 @@
       "median_duration": 36.0,
       "min_duration": 13.0,
       "max_duration": 59.0,
-      "flag_count": 5
+      "flag_count": 8
     },
     {
       "enumerator_id": "E16",
@@ -372,7 +372,7 @@
       "median_duration": 35.0,
       "min_duration": 13.0,
       "max_duration": 207.0,
-      "flag_count": 11
+      "flag_count": 17
     },
     {
       "enumerator_id": "E20",
@@ -385,7 +385,7 @@
       "median_duration": 35.0,
       "min_duration": -2.0,
       "max_duration": 55.0,
-      "flag_count": 12
+      "flag_count": 18
     },
     {
       "enumerator_id": "E17",
@@ -398,7 +398,7 @@
       "median_duration": 35.0,
       "min_duration": 16.0,
       "max_duration": 70.0,
-      "flag_count": 4
+      "flag_count": 8
     },
     {
       "enumerator_id": "E18",
@@ -411,7 +411,7 @@
       "median_duration": 34.5,
       "min_duration": 2.0,
       "max_duration": 325.0,
-      "flag_count": 17
+      "flag_count": 24
     }
   ],
   "duration_stats": {

@@ -125,27 +125,34 @@ export function OverviewTab({ checkResult, performanceResult, onNavigateToPerfor
   const totalFlags = checkResult.summary.total_flags;
   const criticalCount = checkResult.summary.by_severity["critical"] ?? checkResult.summary.by_severity["Critical"] ?? 0;
   const warningCount = checkResult.summary.by_severity["warning"] ?? checkResult.summary.by_severity["Warning"] ?? 0;
+  const suppressedCount = checkResult.summary.suppressed_count ?? 0;
   const surveysChecked = performanceResult?.totals?.total_surveys ?? "—";
 
   return (
     <div className="space-y-6">
       {/* Key Numbers */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-          <p className="text-2xl font-bold text-gray-900">{totalFlags.toLocaleString()}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Total Flags</p>
+      <div className={`grid grid-cols-2 ${suppressedCount > 0 ? "sm:grid-cols-5" : "sm:grid-cols-4"} gap-3`}>
+        <div className="stat-card p-3 bg-gray-50/80 rounded-lg text-center">
+          <p className="text-2xl font-bold text-slate-800 tabular-nums">{totalFlags.toLocaleString()}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Active Flags</p>
         </div>
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-center">
-          <p className="text-2xl font-bold text-red-700">{criticalCount.toLocaleString()}</p>
+        <div className="stat-card p-3 bg-red-50/80 rounded-lg text-center">
+          <p className="text-2xl font-bold text-red-700 tabular-nums">{criticalCount.toLocaleString()}</p>
           <p className="text-xs text-red-600 mt-0.5">Critical</p>
         </div>
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
-          <p className="text-2xl font-bold text-amber-700">{warningCount.toLocaleString()}</p>
+        <div className="stat-card p-3 bg-amber-50/80 rounded-lg text-center">
+          <p className="text-2xl font-bold text-amber-700 tabular-nums">{warningCount.toLocaleString()}</p>
           <p className="text-xs text-amber-600 mt-0.5">Warning</p>
         </div>
-        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
-          <p className="text-2xl font-bold text-gray-900">{typeof surveysChecked === "number" ? surveysChecked.toLocaleString() : surveysChecked}</p>
-          <p className="text-xs text-gray-500 mt-0.5">Surveys Checked</p>
+        {suppressedCount > 0 && (
+          <div className="stat-card p-3 bg-green-50/80 rounded-lg text-center">
+            <p className="text-2xl font-bold text-green-700 tabular-nums">{suppressedCount.toLocaleString()}</p>
+            <p className="text-xs text-green-600 mt-0.5">Resolved</p>
+          </div>
+        )}
+        <div className="stat-card p-3 bg-gray-50/80 rounded-lg text-center">
+          <p className="text-2xl font-bold text-slate-800 tabular-nums">{typeof surveysChecked === "number" ? surveysChecked.toLocaleString() : surveysChecked}</p>
+          <p className="text-xs text-slate-500 mt-0.5">Surveys Checked</p>
         </div>
       </div>
 
@@ -166,7 +173,7 @@ export function OverviewTab({ checkResult, performanceResult, onNavigateToPerfor
                         ? "bg-red-500"
                         : problem.severity === "warning"
                           ? "bg-amber-500"
-                          : "bg-blue-400"
+                          : "bg-indigo-400"
                     }`}
                   />
                   <span className="text-sm font-medium text-gray-800">{problem.category}</span>
@@ -233,7 +240,7 @@ export function OverviewTab({ checkResult, performanceResult, onNavigateToPerfor
             {hasMoreEnumerators && (
               <button
                 onClick={() => setShowAllEnumerators((v) => !v)}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-sm text-indigo-500 hover:text-indigo-600 font-medium"
               >
                 {showAllEnumerators
                   ? "Show top 5"

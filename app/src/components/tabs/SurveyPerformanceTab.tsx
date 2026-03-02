@@ -212,7 +212,7 @@ export function SurveyPerformanceTab({ performanceResult, checkFlags, onSelectEn
                 {sortedEnumerators.map((row) => (
                   <tr key={row.enumerator_id} className="border-b border-gray-100">
                     <td
-                      className="py-2 px-3 font-mono text-xs font-medium text-blue-600 cursor-pointer hover:underline"
+                      className="py-2 px-3 font-mono text-xs font-medium text-indigo-500 cursor-pointer hover:underline"
                       onClick={() => onSelectEnumerator?.(row.enumerator_id)}
                     >
                       {row.enumerator_id}
@@ -268,7 +268,7 @@ export function SurveyPerformanceTab({ performanceResult, checkFlags, onSelectEn
                   <tr key={row.enumerator_id} className="border-b border-gray-100">
                     <td className="py-3 px-3">
                       <span
-                        className="font-mono text-xs font-medium text-blue-600 cursor-pointer hover:underline"
+                        className="font-mono text-xs font-medium text-indigo-500 cursor-pointer hover:underline"
                         onClick={() => onSelectEnumerator?.(row.enumerator_id)}
                       >
                         {row.enumerator_id}

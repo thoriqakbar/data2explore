@@ -41,9 +41,9 @@ export function SummaryDistributionsTab({ profileResult, summaryResult }: Props)
 
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-2">Column Details</h4>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-72 rounded">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-gray-50 z-10">
                 <tr className="border-b border-gray-300">
                   <th className="text-left py-1.5 pr-4 font-medium text-gray-600">Column</th>
                   <th className="text-left py-1.5 pr-4 font-medium text-gray-600">Type</th>
@@ -74,9 +74,9 @@ export function SummaryDistributionsTab({ profileResult, summaryResult }: Props)
           <h3 className="font-semibold text-gray-800">Summary Statistics</h3>
           <p className="text-sm text-gray-500">Click a variable to view its distribution.</p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-96 rounded">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 bg-white z-10">
               <tr className="border-b-2 border-gray-300">
                 <th className="text-left py-2 pr-4 font-medium text-gray-600">Variable</th>
                 <th className="text-right py-2 pr-4 font-medium text-gray-600">Obs</th>

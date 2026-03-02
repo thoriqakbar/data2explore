@@ -34,13 +34,19 @@ def generate_report(data: dict, out_path: Path) -> Path:
     """Build the full Excel workbook and save to *out_path*."""
     wb = Workbook()
 
+    decisions = data.get("decisions", {})
+    active_flags = data.get("flags", [])
+    suppressed_flags = data.get("suppressed_flags", [])
+
     # Sheet 1 is created automatically — rename it
     wb.active.title = "Summary"  # type: ignore[union-attr]
     _write_summary_sheet(wb, data)
-    _write_flags_sheet(wb, data.get("flags", []))
-    _write_action_sheet(wb, data.get("flags", []))
-    _write_enumerator_sheets(wb, data.get("flags", []))
+    _write_flags_sheet(wb, active_flags)
+    _write_action_sheet(wb, active_flags, suppressed_flags, decisions)
+    _write_enumerator_sheets(wb, active_flags)
     _write_data_overview_sheet(wb, data)
+    if decisions:
+        _write_decision_log_sheet(wb, decisions)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(str(out_path))
@@ -155,22 +161,42 @@ def _write_flags_sheet(wb: Workbook, flags: list[dict]) -> None:
 
 # ── Sheet 3: Action Sheet ──────────────────────────────────────────
 
-def _write_action_sheet(wb: Workbook, flags: list[dict]) -> None:
-    """All flags sorted chronologically with editable Note column."""
+def _write_action_sheet(
+    wb: Workbook,
+    active_flags: list[dict],
+    suppressed_flags: list[dict] | None = None,
+    decisions: dict | None = None,
+) -> None:
+    """All flags (active + resolved) with Status/Note pre-filled from decisions."""
     ws = wb.create_sheet("Action Sheet")
-    _populate_action_sheet(ws, flags)
+    _populate_action_sheet(ws, active_flags, suppressed_flags, decisions)
 
 
-def _populate_action_sheet(ws: Worksheet, flags: list[dict]) -> None:
-    """Shared logic for Action Sheet and per-enumerator sheets."""
+def _populate_action_sheet(
+    ws: Worksheet,
+    flags: list[dict],
+    suppressed_flags: list[dict] | None = None,
+    decisions: dict | None = None,
+) -> None:
+    """Shared logic for Action Sheet and per-enumerator sheets.
+
+    When *suppressed_flags* and *decisions* are provided (Action Sheet),
+    the sheet includes ALL flags with Status/Note pre-filled from decisions.
+    Per-enumerator sheets use the simple path (no suppressed flags).
+    """
     headers = _FLAG_HEADERS + ["Note"]
     _header_row(ws, 1, headers)
     ws.freeze_panes = "A2"
 
+    # Build combined list: active flags + suppressed flags
+    all_flags = list(flags)
+    if suppressed_flags:
+        all_flags.extend(suppressed_flags)
+
     # Sort: created_at asc → enumerator_id → severity (critical first)
     sev_order = {"critical": 0, "warning": 1}
     sorted_flags = sorted(
-        flags,
+        all_flags,
         key=lambda f: (
             f.get("created_at", ""),
             f.get("enumerator_id", ""),
@@ -178,16 +204,38 @@ def _populate_action_sheet(ws: Worksheet, flags: list[dict]) -> None:
         ),
     )
 
+    # Build decision lookup: flag_key → decision
+    decisions = decisions or {}
+
+    _FILL_RESOLVED = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
+
     for i, flag in enumerate(sorted_flags, start=2):
+        # Look up decision for this flag
+        flag_key = f"{flag.get('id', '')}|{flag.get('check_id', '')}|{flag.get('column_name', '')}"
+        decision = decisions.get(flag_key)
+        is_resolved = decision and decision.get("status") == "dismissed"
+
         for j, key in enumerate(_FLAG_COLUMNS, start=1):
-            cell = ws.cell(row=i, column=j, value=flag.get(key, ""))
-            sev_lower = flag.get("severity", "").lower()
-            if sev_lower == "critical":
-                cell.fill = _FILL_CRITICAL
-            elif sev_lower == "warning":
-                cell.fill = _FILL_WARNING
-        # Note column left blank for supervisor
-        ws.cell(row=i, column=len(_FLAG_COLUMNS) + 1, value="")
+            value = flag.get(key, "")
+            # Pre-fill Status column from decision
+            if key == "status" and is_resolved:
+                value = "Resolved"
+            cell = ws.cell(row=i, column=j, value=value)
+
+            if is_resolved:
+                cell.fill = _FILL_RESOLVED
+            else:
+                sev_lower = flag.get("severity", "").lower()
+                if sev_lower == "critical":
+                    cell.fill = _FILL_CRITICAL
+                elif sev_lower == "warning":
+                    cell.fill = _FILL_WARNING
+
+        # Note column: pre-fill from decision note, or blank
+        note_value = decision.get("note", "") if decision else ""
+        note_cell = ws.cell(row=i, column=len(_FLAG_COLUMNS) + 1, value=note_value)
+        if is_resolved:
+            note_cell.fill = _FILL_RESOLVED
 
     # Data validation dropdown for Status column (col 4 in _FLAG_COLUMNS)
     if sorted_flags:
@@ -254,6 +302,35 @@ def _write_data_overview_sheet(wb: Workbook, data: dict) -> None:
         for j, key in enumerate(["mean", "std_dev", "min", "max"], start=3):
             val = row.get(key)
             ws.cell(row=i, column=j, value=round(val, 4) if val is not None else "")
+
+    _autosize(ws)
+
+
+# ── Decision Log ──────────────────────────────────────────────────
+
+def _write_decision_log_sheet(wb: Workbook, decisions: dict) -> None:
+    """Audit trail of all decisions made (in-app or via CSV import)."""
+    ws = wb.create_sheet("Decision Log")
+    headers = ["Flag Key", "Status", "Reason", "Note", "Observed Value", "Decided At", "Decided By"]
+    _header_row(ws, 1, headers)
+    ws.freeze_panes = "A2"
+
+    sorted_keys = sorted(decisions.keys())
+    for i, key in enumerate(sorted_keys, start=2):
+        d = decisions[key]
+        if not isinstance(d, dict):
+            continue
+        ws.cell(row=i, column=1, value=key)
+        ws.cell(row=i, column=2, value=d.get("status", ""))
+        ws.cell(row=i, column=3, value=d.get("reason", ""))
+        ws.cell(row=i, column=4, value=d.get("note", ""))
+        ws.cell(row=i, column=5, value=d.get("observed_value_at_decision", ""))
+        ws.cell(row=i, column=6, value=d.get("decided_at", ""))
+        ws.cell(row=i, column=7, value=d.get("decided_by", ""))
+
+    if sorted_keys:
+        last_col = get_column_letter(len(headers))
+        ws.auto_filter.ref = f"A1:{last_col}{len(sorted_keys) + 1}"
 
     _autosize(ws)
 

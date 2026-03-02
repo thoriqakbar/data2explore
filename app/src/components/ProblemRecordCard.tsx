@@ -1,10 +1,12 @@
+import type { FlagRow } from "../../../shared/index";
 import type { ProblemRecordGroup } from "./results/problemReview";
 
 interface Props {
   group: ProblemRecordGroup;
+  onResolveFlags?: (flags: FlagRow[]) => void;
 }
 
-export function ProblemRecordCard({ group }: Props) {
+export function ProblemRecordCard({ group, onResolveFlags }: Props) {
   return (
     <div className="border border-gray-200 rounded-lg bg-white">
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-3">
@@ -47,9 +49,20 @@ export function ProblemRecordCard({ group }: Props) {
             </div>
             <div className="space-y-1">
               <p className="text-xs text-gray-700">{flag.message}</p>
-              <p className="text-xs text-gray-500">
-                Observed value: <span className="font-mono">{flag.observed_value || "\u2014"}</span>
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-gray-500">
+                  Observed value: <span className="font-mono">{flag.observed_value || "\u2014"}</span>
+                </p>
+                {onResolveFlags && (
+                  <button
+                    onClick={() => onResolveFlags([flag])}
+                    className="px-2 py-0.5 text-[11px] font-medium rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors flex-shrink-0"
+                    title={`Resolve flag for record ${flag.id || "unknown"}`}
+                  >
+                    Resolve
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}

@@ -34,4 +34,10 @@ contextBridge.exposeInMainWorld("d2e", {
     ipcRenderer.invoke("file:write", path, content) as Promise<boolean>,
   getSamplePath: () =>
     ipcRenderer.invoke("app:sample-path") as Promise<string | null>,
+  loadDecisions: (outDir: string) =>
+    ipcRenderer.invoke("decisions:load", outDir) as Promise<unknown | null>,
+  saveDecisions: (outDir: string, data: unknown) =>
+    ipcRenderer.invoke("decisions:save", outDir, data) as Promise<boolean>,
+  importReviewedCSV: () =>
+    ipcRenderer.invoke("decisions:import-csv") as Promise<string | null>,
 });

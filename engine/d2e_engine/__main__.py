@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from d2e_engine.config import load_config
+from d2e_engine.decisions import apply_decisions, flags_to_suppressed_json, load_decisions
 from d2e_engine.io import read_data
 from d2e_engine.metadata import build_run_metadata
 from d2e_engine.output import build_summary_json, flags_to_csv, flags_to_json, load_prior_flags, summary_to_json
@@ -69,21 +70,52 @@ def cmd_check(args: argparse.Namespace) -> int:
         checks_requested=selected_check_ids,
     )
 
-    flags, skipped = run_checks(df, mapping, config, run_id, selected_check_ids)
+    all_flags, skipped = run_checks(df, mapping, config, run_id, selected_check_ids)
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Apply decisions — suppress dismissed flags
+    decisions_path = out_dir / "decisions.json"
+    decisions = load_decisions(decisions_path)
+    flags, suppressed_flags = apply_decisions(all_flags, decisions)
 
     flags_to_csv(flags, out_dir / "flags.csv")
     flags_to_json(flags, out_dir / "flags.json")
     _write_json(out_dir / "run_metadata.json", metadata)
 
-    prior_flags = load_prior_flags(args.prior_flags)
-    summary = build_summary_json(flags, run_id, prior_flags if args.prior_flags else None)
+    # Write suppressed flags for audit trail
+    if suppressed_flags:
+        flags_to_suppressed_json(suppressed_flags, out_dir / "suppressed_flags.json")
+
+    # Validate dataset_hash before using prior flags for delta comparison
+    prior_flags: list = []
+    use_prior = False
+    if args.prior_flags:
+        prior_meta_path = out_dir / "run_metadata.json"
+        if prior_meta_path.exists():
+            try:
+                with prior_meta_path.open("r", encoding="utf-8") as f:
+                    prior_meta = json.load(f)
+                if prior_meta.get("dataset_hash") == metadata["dataset_hash"]:
+                    prior_flags = load_prior_flags(args.prior_flags)
+                    use_prior = True
+                else:
+                    logger.info("Dataset hash mismatch — skipping delta comparison")
+            except Exception:
+                logger.warning("Could not read prior run_metadata.json", exc_info=True)
+        else:
+            # No prior metadata — still try to load flags (backwards compat)
+            prior_flags = load_prior_flags(args.prior_flags)
+            use_prior = bool(prior_flags)
+
+    summary = build_summary_json(flags, run_id, prior_flags if use_prior else None)
     summary["skipped_checks"] = skipped
+    summary["suppressed_count"] = len(suppressed_flags)
+    summary["total_before_suppression"] = len(all_flags)
     summary_to_json(summary, out_dir / "summary.json")
 
-    print(f"Check complete: {len(flags)} flag(s) written to {out_dir}")
+    print(f"Check complete: {len(flags)} active flag(s), {len(suppressed_flags)} suppressed, written to {out_dir}")
     if skipped:
         print(f"  Skipped {len(skipped)} check(s): {', '.join(s['check_id'] for s in skipped)}")
     return 0

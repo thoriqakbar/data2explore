@@ -34,5 +34,8 @@ interface Window {
     loadConfig: () => Promise<unknown | null>;
     writeFile: (path: string, content: string) => Promise<boolean>;
     getSamplePath: () => Promise<string | null>;
+    loadDecisions: (outDir: string) => Promise<unknown | null>;
+    saveDecisions: (outDir: string, data: unknown) => Promise<boolean>;
+    importReviewedCSV: () => Promise<string | null>;
   };
 }

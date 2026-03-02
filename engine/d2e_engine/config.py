@@ -17,8 +17,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "duration_unit": "minutes",  # "minutes" | "seconds"
     "duration_start_column": "",
     "duration_end_column": "",
-    "min_duration_minutes": 5,
-    "max_duration_minutes": 120,
+    "duration_deviation_factor": 3.0,
+    "duration_min_observations": 5,
     "heaping_multiple": 5,
     "heaping_ceiling": 15,
     # CHK-004 missingness by enumerator

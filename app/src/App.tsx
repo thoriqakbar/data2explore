@@ -2,7 +2,10 @@ import { useCallback, useState } from "react";
 import type {
   AllowedValuesRule,
   CheckOutput,
+  DecisionsFile,
   DurationMapping,
+  FlagDecision,
+  FlagRow,
   MappingConfig,
   PerformanceOutput,
   ProfileOutput,
@@ -19,11 +22,12 @@ import { RunningStep } from "./components/RunningStep";
 import type { Phase } from "./components/RunningStep";
 import { ResultsStep } from "./components/ResultsStep";
 import { ErrorBanner, classifyError } from "./components/ErrorBanner";
+import { StepPanel } from "./components/StepPanel";
+import { parseReviewedCsv } from "./utils/csvDecisionParser";
 
 type Step = "import" | "mapping" | "rules" | "running" | "results";
 
 type RunContext = {
-  lastCheckOutDir: string | null;
   lastConfigSnapshot: ProjectConfig | null;
 };
 
@@ -31,6 +35,10 @@ type LoadedProjectConfig = {
   config: ProjectConfig;
   warning: string | null;
 };
+
+function flagKeyStr(flag: FlagRow): string {
+  return `${flag.id}|${flag.check_id}|${flag.column_name}`;
+}
 
 const APP_VERSION = "0.1.0";
 
@@ -231,11 +239,21 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [runContext, setRunContext] = useState<RunContext>({
-    lastCheckOutDir: null,
     lastConfigSnapshot: null,
   });
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [decisions, setDecisions] = useState<Record<string, FlagDecision>>({});
+  const [suppressedFlags, setSuppressedFlags] = useState<FlagRow[]>([]);
+  const [undoToast, setUndoToast] = useState<{
+    message: string;
+    undoSnapshot: {
+      decisions: Record<string, FlagDecision>;
+      checkResult: CheckOutput;
+      suppressedFlags: FlagRow[];
+    };
+    timerId: ReturnType<typeof setTimeout>;
+  } | null>(null);
 
   const handleProfileFile = useCallback(async (selected: string) => {
     setError(null);
@@ -245,6 +263,7 @@ export function App() {
     setSummaryResult(null);
     setCheckResult(null);
     setPerformanceResult(null);
+    // Reset is no longer needed — delta is persistent via output dir
 
     const tempOut = selected + ".d2e-profile.json";
     const result = await window.d2e.runEngine({
@@ -442,7 +461,8 @@ export function App() {
       ));
 
       const outDir = filePath + ".d2e-checks";
-      const priorFlags = runContext.lastCheckOutDir ? `${runContext.lastCheckOutDir}/flags.csv` : undefined;
+      // Always pass prior flags from the deterministic output dir — engine validates dataset_hash
+      const priorFlags = `${outDir}/flags.csv`;
       const chkResult = await window.d2e.runEngine({
         command: "check",
         input: filePath,
@@ -467,14 +487,24 @@ export function App() {
           summary: data.summary,
           run_metadata: data.run_metadata,
         });
-        setRunContext({
-          lastCheckOutDir: outDir,
-          lastConfigSnapshot: projectConfig,
-        });
+        setSuppressedFlags([]); // Suppressed flags are handled by engine; reset UI list
+        setRunContext({ lastConfigSnapshot: projectConfig });
         checkSummaryPath = outDir + "/summary.json";
+
+        // Load decisions from disk for in-app dismiss UI
+        try {
+          const raw = await window.d2e.loadDecisions(outDir);
+          if (raw && typeof raw === "object" && "decisions" in (raw as Record<string, unknown>)) {
+            setDecisions((raw as DecisionsFile).decisions);
+          } else {
+            setDecisions({});
+          }
+        } catch {
+          setDecisions({});
+        }
       } else {
         setCheckResult(null);
-        setRunContext((current) => ({ ...current, lastConfigSnapshot: projectConfig }));
+        setRunContext({ lastConfigSnapshot: projectConfig });
       }
 
       setRunPhases((prev) => prev.map((p, i) =>
@@ -507,7 +537,7 @@ export function App() {
       setError(String(err));
       setStep("rules");
     }
-  }, [filePath, mapping, durationMapping, rangeRules, allowedValuesRules, excludedColumns, enabledChecks, runContext.lastCheckOutDir]);
+  }, [filePath, mapping, durationMapping, rangeRules, allowedValuesRules, excludedColumns, enabledChecks]);
 
   const handleExportReport = useCallback(async () => {
     if (!profileResult || !summaryResult || !filePath) return;
@@ -530,6 +560,8 @@ export function App() {
           skipped_checks: [],
         },
         flags: checkResult?.flags ?? [],
+        suppressed_flags: suppressedFlags,
+        decisions,
         run_metadata: checkResult?.run_metadata ?? {
           run_id: "",
           dataset_path: filePath,
@@ -568,7 +600,7 @@ export function App() {
     } finally {
       setExporting(false);
     }
-  }, [filePath, profileResult, summaryResult, checkResult, mapping]);
+  }, [filePath, profileResult, summaryResult, checkResult, mapping, suppressedFlags, decisions]);
 
   const handleExportFlags = useCallback(async (content: string) => {
     if (!filePath) return;
@@ -584,6 +616,150 @@ export function App() {
       setExportMessage(`Flag export failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [filePath]);
+
+  const saveDecisionsToDisk = useCallback(async (updated: Record<string, FlagDecision>) => {
+    if (!filePath) return;
+    const outDir = filePath + ".d2e-checks";
+    const payload: DecisionsFile = {
+      schema_version: 1,
+      dataset_hash: checkResult?.run_metadata?.dataset_hash ?? "",
+      updated_at: new Date().toISOString(),
+      decisions: updated,
+    };
+    try {
+      await window.d2e.saveDecisions(outDir, payload);
+    } catch (err) {
+      console.error("Failed to save decisions:", err);
+    }
+  }, [filePath, checkResult]);
+
+  const handleResolveFlags = useCallback((flagsToResolve: FlagRow[]) => {
+    if (!checkResult) return;
+
+    // Snapshot current state for undo
+    const prevDecisions = { ...decisions };
+    const prevCheckResult = checkResult;
+    const prevSuppressed = [...suppressedFlags];
+
+    // Build new decisions
+    const now = new Date().toISOString();
+    const newDecisions = { ...decisions };
+    for (const flag of flagsToResolve) {
+      const key = flagKeyStr(flag);
+      newDecisions[key] = {
+        status: "dismissed",
+        reason: "accepted",
+        note: "",
+        observed_value_at_decision: flag.observed_value,
+        decided_at: now,
+        decided_by: "app",
+      };
+    }
+    setDecisions(newDecisions);
+
+    // Move resolved flags from active to suppressed (client-side)
+    const resolvedKeys = new Set(flagsToResolve.map(flagKeyStr));
+    const remainingFlags = checkResult.flags.filter(f => !resolvedKeys.has(flagKeyStr(f)));
+    const newSuppressed = checkResult.flags.filter(f => resolvedKeys.has(flagKeyStr(f)));
+    setSuppressedFlags(prev => [...prev, ...newSuppressed]);
+    const updatedCheckResult: CheckOutput = {
+      ...checkResult,
+      flags: remainingFlags,
+      summary: {
+        ...checkResult.summary,
+        total_flags: remainingFlags.length,
+        suppressed_count: (checkResult.summary.suppressed_count ?? 0) + newSuppressed.length,
+        total_before_suppression: checkResult.summary.total_before_suppression ?? checkResult.summary.total_flags,
+      },
+    };
+    setCheckResult(updatedCheckResult);
+
+    // Cancel any prior undo toast timer and commit its changes
+    if (undoToast) {
+      clearTimeout(undoToast.timerId);
+    }
+
+    // Show undo toast — delay disk write by 5s
+    const count = flagsToResolve.length;
+    const label = count === 1
+      ? `Resolved 1 flag (${flagsToResolve[0].id || flagsToResolve[0].check_id})`
+      : `Resolved ${count} flags`;
+    const timerId = setTimeout(() => {
+      saveDecisionsToDisk(newDecisions);
+      setUndoToast(null);
+    }, 5000);
+
+    setUndoToast({
+      message: label,
+      undoSnapshot: {
+        decisions: prevDecisions,
+        checkResult: prevCheckResult,
+        suppressedFlags: prevSuppressed,
+      },
+      timerId,
+    });
+  }, [checkResult, decisions, suppressedFlags, saveDecisionsToDisk, undoToast]);
+
+  const handleUndoResolve = useCallback(() => {
+    if (!undoToast) return;
+    clearTimeout(undoToast.timerId);
+    setDecisions(undoToast.undoSnapshot.decisions);
+    setCheckResult(undoToast.undoSnapshot.checkResult);
+    setSuppressedFlags(undoToast.undoSnapshot.suppressedFlags);
+    // Save the restored decisions to disk (overwrite with pre-resolve state)
+    saveDecisionsToDisk(undoToast.undoSnapshot.decisions);
+    setUndoToast(null);
+  }, [undoToast, saveDecisionsToDisk]);
+
+  const handleUnresolveFlags = useCallback((flagsToUnresolve: FlagRow[]) => {
+    if (!checkResult) return;
+    const keysToRemove = new Set(flagsToUnresolve.map(flagKeyStr));
+
+    // Remove from decisions
+    const newDecisions = { ...decisions };
+    for (const key of keysToRemove) {
+      delete newDecisions[key];
+    }
+    setDecisions(newDecisions);
+
+    // Move flags back from suppressed to active
+    const restored = suppressedFlags.filter(f => keysToRemove.has(flagKeyStr(f)));
+    const remainingSuppressed = suppressedFlags.filter(f => !keysToRemove.has(flagKeyStr(f)));
+    setSuppressedFlags(remainingSuppressed);
+    setCheckResult({
+      ...checkResult,
+      flags: [...checkResult.flags, ...restored],
+      summary: {
+        ...checkResult.summary,
+        total_flags: checkResult.flags.length + restored.length,
+        suppressed_count: Math.max(0, (checkResult.summary.suppressed_count ?? 0) - restored.length),
+      },
+    });
+
+    // Persist immediately (no undo window for unresolve — it's already the safety net)
+    saveDecisionsToDisk(newDecisions);
+  }, [checkResult, decisions, suppressedFlags, saveDecisionsToDisk]);
+
+  const handleImportReviewedCsv = useCallback(async () => {
+    try {
+      const csvText = await window.d2e.importReviewedCSV();
+      if (!csvText) return; // User cancelled
+
+      const { decisions: imported, importedCount, skippedCount } = parseReviewedCsv(csvText);
+      if (importedCount === 0) {
+        setNotice(`No resolved flags found in CSV (${skippedCount} rows had no recognized status). Expected a "status" column with values like Resolved, Accepted, Dismissed, etc.`);
+        return;
+      }
+
+      // Merge: imported decisions override existing ones
+      const merged = { ...decisions, ...imported };
+      setDecisions(merged);
+      await saveDecisionsToDisk(merged);
+      setNotice(`Imported ${importedCount} decision${importedCount === 1 ? "" : "s"} from CSV.${skippedCount > 0 ? ` ${skippedCount} rows skipped (status not resolved).` : ""} Re-run checks to apply.`);
+    } catch (err) {
+      setError(`CSV import failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [decisions, saveDecisionsToDisk]);
 
   const handleStartOver = useCallback(() => {
     setStep("import");
@@ -601,23 +777,23 @@ export function App() {
     setError(null);
     setNotice(null);
     setExportMessage(null);
-  }, []);
+    setDecisions({});
+    setSuppressedFlags([]);
+    if (undoToast) {
+      clearTimeout(undoToast.timerId);
+      setUndoToast(null);
+    }
+  }, [undoToast]);
 
   // Classify errors for ErrorBanner
   const errorInfo = error ? classifyError(error) : null;
 
   return (
-    <main className="max-w-3xl mx-auto my-8 px-6 py-8 bg-white rounded-xl shadow-lg">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">data2explore</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          High-frequency checks for survey data quality
-        </p>
-      </header>
-
+    <main className="app-card max-w-3xl mx-auto my-8 px-6 py-8 rounded-2xl font-sans">
       <Stepper currentStep={step} />
 
       {step === "import" && (
+        <StepPanel key="import">
         <ImportStep
           filePath={filePath}
           profileResult={profileResult}
@@ -625,9 +801,11 @@ export function App() {
           onSelectFile={handleSelectFile}
           onLoadSample={handleLoadSample}
         />
+        </StepPanel>
       )}
 
       {step === "mapping" && profileResult && (
+        <StepPanel key="mapping">
         <MappingStep
           profileResult={profileResult}
           mapping={mapping}
@@ -638,9 +816,11 @@ export function App() {
           onBack={() => setStep("import")}
           onLoadConfig={handleLoadConfig}
         />
+        </StepPanel>
       )}
 
       {step === "rules" && profileResult && (
+        <StepPanel key="rules">
         <RulesStep
           profileResult={profileResult}
           rangeRules={rangeRules}
@@ -658,17 +838,20 @@ export function App() {
           onBack={() => setStep("mapping")}
           onSaveConfig={handleSaveConfig}
         />
+        </StepPanel>
       )}
 
       {step === "running" && (
+        <StepPanel key="running">
         <RunningStep
           phases={runPhases}
           rowCount={profileResult?.schema_profile.row_count}
         />
+        </StepPanel>
       )}
 
       {step === "results" && profileResult && summaryResult && (
-        <>
+        <StepPanel key="results">
           <ResultsStep
             profileResult={profileResult}
             summaryResult={summaryResult}
@@ -678,6 +861,11 @@ export function App() {
             onExportReport={handleExportReport}
             onExportFlags={handleExportFlags}
             exporting={exporting}
+            onResolveFlags={handleResolveFlags}
+            onUnresolveFlags={handleUnresolveFlags}
+            onImportReviewedCsv={handleImportReviewedCsv}
+            suppressedFlags={suppressedFlags}
+            decisions={decisions}
           />
           {exportMessage && (
             <div className={`mt-4 p-3 rounded-lg text-sm ${
@@ -688,7 +876,7 @@ export function App() {
               {exportMessage}
             </div>
           )}
-        </>
+        </StepPanel>
       )}
 
       {step !== "import" && notice && (
@@ -706,6 +894,17 @@ export function App() {
             onAction={step === "running" ? () => setStep("rules") : undefined}
             actionLabel={step === "running" ? "Back to Rules" : undefined}
           />
+        </div>
+      )}
+      {undoToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-slate-800 text-white rounded-lg text-sm flex items-center gap-4 shadow-lg max-w-md">
+          <span>{undoToast.message}</span>
+          <button
+            onClick={handleUndoResolve}
+            className="px-3 py-1 text-sm font-semibold rounded bg-white text-slate-800 hover:bg-slate-100 transition-colors flex-shrink-0"
+          >
+            Undo
+          </button>
         </div>
       )}
     </main>

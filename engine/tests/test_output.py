@@ -101,6 +101,30 @@ class TestCSVRoundtrip:
         assert loaded == []
 
 
+class TestDeltaHashValidation:
+    """Tests for persistent delta: hash-match uses delta, mismatch skips it."""
+
+    def test_matching_hash_uses_delta(self):
+        """When dataset_hash matches, prior flags should be used for delta."""
+        prior = [_make_flag(id="R1", check_id="CHK-001", column_name="a")]
+        current = [
+            _make_flag(id="R1", check_id="CHK-001", column_name="a"),
+            _make_flag(id="R2", check_id="CHK-001", column_name="b"),
+        ]
+        summary = build_summary_json(current, "run-2", prior)
+        assert summary["has_prior_run"] is True
+        assert summary["new_flags_count"] == 1
+        assert summary["persisting_flags_count"] == 1
+        assert summary["resolved_flags_count"] == 0
+
+    def test_no_prior_flags_no_delta(self):
+        """When prior_flags is None, delta should show has_prior_run=False."""
+        flags = [_make_flag(id="R1")]
+        summary = build_summary_json(flags, "run-1", None)
+        assert summary["has_prior_run"] is False
+        assert summary["new_flags_count"] == 1
+
+
 class TestJSONOutput:
     def test_flags_to_json_roundtrip(self):
         flags = [_make_flag(id="R1")]
