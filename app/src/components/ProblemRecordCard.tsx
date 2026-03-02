@@ -18,11 +18,6 @@ export function ProblemRecordCard({ group, onResolveFlags }: Props) {
             Enumerator: <span className="font-mono">{group.enumerator_id}</span>
           </span>
         )}
-        {group.module && (
-          <span className="text-xs text-gray-500">
-            Module: <span className="font-mono">{group.module}</span>
-          </span>
-        )}
         <span className="text-xs text-gray-500">
           {group.flags.length} flag{group.flags.length === 1 ? "" : "s"}
         </span>

@@ -39,6 +39,14 @@ def _needs_rename(original: str) -> bool:
     return _sanitize_stata_name(original) != original
 
 
+def _truncvar(prefix: str, suffix: str) -> str:
+    """Build a Stata variable name, truncating suffix to fit the 32-char limit."""
+    max_suffix = 32 - len(prefix)
+    if max_suffix <= 0:
+        return prefix[:32]
+    return prefix + suffix[:max_suffix]
+
+
 def _stata_inlist(var: str, values: list[str], is_string: bool) -> str:
     """Build a Stata inlist() expression, chaining for >10 string values.
 
@@ -90,12 +98,23 @@ def _emit_setup(
     # Normalize path for Stata (forward slashes)
     stata_path = dataset_path.replace("\\", "/")
 
+    # Choose load command based on file extension
+    ext = Path(dataset_path).suffix.lower()
+    if ext == ".dta":
+        load_cmd = f'use "{stata_path}", clear'
+    elif ext in (".csv", ".txt", ".tsv"):
+        load_cmd = f'import delimited using "{stata_path}", clear'
+    elif ext in (".xls", ".xlsx"):
+        load_cmd = f'import excel using "{stata_path}", firstrow clear'
+    else:
+        load_cmd = f'use "{stata_path}", clear'
+
     lines = [
         "clear all",
         "set more off",
         "",
         '* ── Data ──────────────────────────────────────────',
-        f'use "{stata_path}", clear',
+        load_cmd,
         "",
     ]
 
@@ -149,6 +168,10 @@ def _emit_chk001(mapping: dict[str, str], config: dict[str, Any]) -> str:
 /*───────────────────────────────────────────────────
   CHK-001: Duplicate ID | Severity: Critical
   Rule: ID appears more than once
+  Note: This flags EVERY row with a duplicate ID. The data2explore app
+  reports one flag per unique duplicate ID, so the count here will be
+  higher (e.g. 2 rows sharing the same ID = 2 flagged rows here,
+  but 1 flag in the app).
 ───────────────────────────────────────────────────*/
 
 duplicates tag `id_col', gen(_d2e_chk001_dup)
@@ -156,7 +179,8 @@ gen d2e_flag_chk001 = (_d2e_chk001_dup > 0) if !missing(`id_col')
 label var d2e_flag_chk001 "CHK-001: Duplicate ID"
 drop _d2e_chk001_dup
 
-di as text "CHK-001: " as result "`=sum(d2e_flag_chk001)'" as text " flags"
+quietly count if d2e_flag_chk001 == 1
+di as text "CHK-001: " as result r(N) as text " row-level flags"
 
 """
 
@@ -224,6 +248,9 @@ def _emit_chk004(mapping: dict[str, str], config: dict[str, Any], columns: list[
         '/*───────────────────────────────────────────────────',
         '  CHK-004: Missingness by Enumerator | Severity: Warning',
         '  Rule: Enumerator missing rate > deviation_factor * baseline',
+        '  Note: This flags every ROW belonging to an offending enumerator.',
+        '  The data2explore app reports one flag per (column, enumerator)',
+        '  pair, so the count here will be higher.',
         '───────────────────────────────────────────────────*/',
         '',
         'di as text _newline "CHK-004: Missingness by Enumerator"',
@@ -239,7 +266,7 @@ def _emit_chk004(mapping: dict[str, str], config: dict[str, Any], columns: list[
         lines.append(f'local _base_miss_{col} = r(N) / _N')
         lines.append(f'if `_base_miss_{col}\' >= 0.01 {{')
         lines.append(f'    bysort `enumerator_col\': egen _d2e_emiss_{col} = mean(missing({col}))')
-        lines.append(f'    bysort `enumerator_col\': gen _d2e_ecount_{col} = _N if _n == 1')
+        lines.append(f'    bysort `enumerator_col\': gen _d2e_ecount_{col} = _N')
         lines.append(f'    replace `_chk004_flag\' = 1 if _d2e_emiss_{col} > `_base_miss_{col}\' * `enum_deviation\' & _d2e_ecount_{col} >= `enum_min_rows\'')
         lines.append(f'    drop _d2e_emiss_{col} _d2e_ecount_{col}')
         lines.append(f'}}')
@@ -249,7 +276,8 @@ def _emit_chk004(mapping: dict[str, str], config: dict[str, Any], columns: list[
     lines.append('label var d2e_flag_chk004 "CHK-004: Missingness by Enumerator"')
     lines.append('drop `_chk004_flag\'')
     lines.append('')
-    lines.append('di as text "CHK-004: " as result "`=sum(d2e_flag_chk004)\'" as text " flags"')
+    lines.append('quietly count if d2e_flag_chk004 == 1')
+    lines.append('di as text "CHK-004: " as result r(N) as text " flags"')
     lines.append('')
 
     return "\n".join(lines) + "\n"
@@ -293,11 +321,13 @@ def _emit_chk005(config: dict[str, Any]) -> str:
         if rule_max is not None:
             label_parts.append(f"<= {rule_max}")
 
+        flagvar = _truncvar("d2e_flag_chk005_", safe)
         lines.append(f'* Range rule: {safe} {" and ".join(label_parts)}')
-        lines.append(f'gen d2e_flag_chk005_{safe} = ({condition}) if !missing({safe})')
+        lines.append(f'gen {flagvar} = ({condition}) if !missing({safe})')
         range_label = f"[{rule_min if rule_min is not None else '.'}, {rule_max if rule_max is not None else '.'}]"
-        lines.append(f'label var d2e_flag_chk005_{safe} "CHK-005: Range {range_label} for {safe}"')
-        lines.append(f'di as text "CHK-005 ({safe}): " as result "`=sum(d2e_flag_chk005_{safe})\'" as text " flags"')
+        lines.append(f'label var {flagvar} "CHK-005: Range {range_label} for {safe}"')
+        lines.append(f'quietly count if {flagvar} == 1')
+        lines.append(f'di as text "CHK-005 ({safe}): " as result r(N) as text " flags"')
         lines.append('')
 
     return "\n".join(lines) + "\n"
@@ -322,15 +352,18 @@ def _emit_chk008(config: dict[str, Any], columns: list[str]) -> str:
 
     for col in analysis_cols:
         safe = _sanitize_stata_name(col)
+        flagvar = _truncvar("d2e_flag_chk008_", safe)
+        zvar = _truncvar("_d2e_z_", safe)
         lines.append(f'capture confirm numeric variable {safe}')
         lines.append(f'if _rc == 0 {{')
         lines.append(f'    quietly summarize {safe}')
         lines.append(f'    if r(sd) > 0 & r(sd) < . {{')
-        lines.append(f'        gen _d2e_z_{safe} = ({safe} - r(mean)) / r(sd)')
-        lines.append(f'        gen d2e_flag_chk008_{safe} = (abs(_d2e_z_{safe}) > `zscore_threshold\') if !missing({safe})')
-        lines.append(f'        label var d2e_flag_chk008_{safe} "CHK-008: Outlier z-score for {safe}"')
-        lines.append(f'        di as text "CHK-008 ({safe}): " as result "`=sum(d2e_flag_chk008_{safe})\'" as text " flags"')
-        lines.append(f'        drop _d2e_z_{safe}')
+        lines.append(f'        gen {zvar} = ({safe} - r(mean)) / r(sd)')
+        lines.append(f'        gen {flagvar} = (abs({zvar}) > `zscore_threshold\') if !missing({safe})')
+        lines.append(f'        label var {flagvar} "CHK-008: Outlier z-score for {safe}"')
+        lines.append(f'        quietly count if {flagvar} == 1')
+        lines.append(f'        di as text "CHK-008 ({safe}): " as result r(N) as text " flags"')
+        lines.append(f'        drop {zvar}')
         lines.append(f'    }}')
         lines.append(f'}}')
         lines.append('')
@@ -366,19 +399,24 @@ def _emit_chk010(config: dict[str, Any]) -> str:
 
     lines.extend([
         '',
-        '* ── Impossible (non-positive) ──',
-        'gen d2e_flag_chk010_impossible = (_d2e_dur_minutes <= 0) if !missing(_d2e_dur_minutes)',
+        '* Subtypes are mutually exclusive (matching data2explore logic):',
+        '* impossible > short > long > heaped (first match wins)',
+        'gen d2e_flag_chk010_impossible = 0',
+        'gen d2e_flag_chk010_short = 0',
+        'gen d2e_flag_chk010_long = 0',
+        'gen d2e_flag_chk010_heaped = 0',
         'label var d2e_flag_chk010_impossible "CHK-010: Impossible duration"',
+        'label var d2e_flag_chk010_short "CHK-010: Unusually short duration"',
+        'label var d2e_flag_chk010_long "CHK-010: Unusually long duration"',
+        'label var d2e_flag_chk010_heaped "CHK-010: Heaped duration"',
+        '',
+        '* ── Impossible (non-positive) ──',
+        'replace d2e_flag_chk010_impossible = 1 if _d2e_dur_minutes <= 0 & !missing(_d2e_dur_minutes)',
         '',
         '* ── Short / Long (relative to median, using MAD) ──',
         'quietly summarize _d2e_dur_minutes if _d2e_dur_minutes > 0, detail',
         'local _dur_median = r(p50)',
         'local _dur_n = r(N)',
-        '',
-        'gen d2e_flag_chk010_short = 0',
-        'gen d2e_flag_chk010_long = 0',
-        'label var d2e_flag_chk010_short "CHK-010: Unusually short duration"',
-        'label var d2e_flag_chk010_long "CHK-010: Unusually long duration"',
         '',
         'if `_dur_n\' >= `dur_min_obs\' {',
         '    * Compute MAD (Median Absolute Deviation)',
@@ -389,20 +427,24 @@ def _emit_chk010(config: dict[str, Any]) -> str:
         '    if `_dur_mad\' > 0 {',
         '        local _dur_lower = `_dur_median\' - `dur_deviation\' * `_dur_mad\'',
         '        local _dur_upper = `_dur_median\' + `dur_deviation\' * `_dur_mad\'',
-        '        replace d2e_flag_chk010_short = (_d2e_dur_minutes < `_dur_lower\') if _d2e_dur_minutes > 0 & !missing(_d2e_dur_minutes)',
-        '        replace d2e_flag_chk010_long = (_d2e_dur_minutes > `_dur_upper\') if _d2e_dur_minutes > 0 & !missing(_d2e_dur_minutes)',
+        '        * Only flag short/long for rows not already flagged as impossible',
+        '        replace d2e_flag_chk010_short = 1 if _d2e_dur_minutes < `_dur_lower\' & _d2e_dur_minutes > 0 & !missing(_d2e_dur_minutes) & d2e_flag_chk010_impossible == 0',
+        '        replace d2e_flag_chk010_long = 1 if _d2e_dur_minutes > `_dur_upper\' & _d2e_dur_minutes > 0 & !missing(_d2e_dur_minutes) & d2e_flag_chk010_impossible == 0',
         '    }',
         '    capture drop _d2e_dur_dev',
         '}',
         '',
-        '* ── Heaped (multiples of heaping_multiple, up to ceiling) ──',
-        'gen d2e_flag_chk010_heaped = (mod(_d2e_dur_minutes, `heap_multiple\') == 0 & _d2e_dur_minutes <= `heap_ceiling\' & _d2e_dur_minutes > 0) if !missing(_d2e_dur_minutes)',
-        'label var d2e_flag_chk010_heaped "CHK-010: Heaped duration"',
+        '* ── Heaped (only if not already flagged by another subtype) ──',
+        'replace d2e_flag_chk010_heaped = 1 if mod(_d2e_dur_minutes, `heap_multiple\') == 0 & _d2e_dur_minutes <= `heap_ceiling\' & _d2e_dur_minutes > 0 & !missing(_d2e_dur_minutes) & d2e_flag_chk010_impossible == 0 & d2e_flag_chk010_short == 0 & d2e_flag_chk010_long == 0',
         '',
-        'di as text "CHK-010 impossible: " as result "`=sum(d2e_flag_chk010_impossible)\'" as text " flags"',
-        'di as text "CHK-010 short:      " as result "`=sum(d2e_flag_chk010_short)\'" as text " flags"',
-        'di as text "CHK-010 long:       " as result "`=sum(d2e_flag_chk010_long)\'" as text " flags"',
-        'di as text "CHK-010 heaped:     " as result "`=sum(d2e_flag_chk010_heaped)\'" as text " flags"',
+        'quietly count if d2e_flag_chk010_impossible == 1',
+        'di as text "CHK-010 impossible: " as result r(N) as text " flags"',
+        'quietly count if d2e_flag_chk010_short == 1',
+        'di as text "CHK-010 short:      " as result r(N) as text " flags"',
+        'quietly count if d2e_flag_chk010_long == 1',
+        'di as text "CHK-010 long:       " as result r(N) as text " flags"',
+        'quietly count if d2e_flag_chk010_heaped == 1',
+        'di as text "CHK-010 heaped:     " as result r(N) as text " flags"',
         '',
         'drop _d2e_dur_minutes',
         '',
@@ -444,10 +486,12 @@ def _emit_chk012(config: dict[str, Any]) -> str:
         else:
             inlist_expr = _stata_inlist(safe, str_values, is_string=True)
 
+        flagvar = _truncvar("d2e_flag_chk012_", safe)
         lines.append(f'* Allowed values for {safe}: {", ".join(str_values[:10])}{"..." if len(str_values) > 10 else ""}')
-        lines.append(f'gen d2e_flag_chk012_{safe} = !({inlist_expr}) if !missing({safe})')
-        lines.append(f'label var d2e_flag_chk012_{safe} "CHK-012: Allowed values for {safe}"')
-        lines.append(f'di as text "CHK-012 ({safe}): " as result "`=sum(d2e_flag_chk012_{safe})\'" as text " flags"')
+        lines.append(f'gen {flagvar} = !({inlist_expr}) if !missing({safe})')
+        lines.append(f'label var {flagvar} "CHK-012: Allowed values for {safe}"')
+        lines.append(f'quietly count if {flagvar} == 1')
+        lines.append(f'di as text "CHK-012 ({safe}): " as result r(N) as text " flags"')
         lines.append('')
 
     return "\n".join(lines) + "\n"
@@ -509,7 +553,8 @@ if "`flag_vars'" != "" {{
     export delimited using "{stata_path}stata_flags.csv", replace
     restore
 
-    di as text _newline "Exported " as result "`=sum(_d2e_total_flags > 0)'" as text " flagged observations to stata_flags.csv"
+    quietly count if _d2e_total_flags > 0
+    di as text _newline "Exported " as result r(N) as text " flagged observations to stata_flags.csv"
     drop _d2e_total_flags
 }}
 else {{
@@ -559,7 +604,7 @@ def generate_dofile(
     config : dict
         Merged config (defaults + user overrides).
     mapping : dict
-        Logical-to-physical column mapping (id, enumerator_id, survey_date, module).
+        Logical-to-physical column mapping (id, enumerator_id, survey_date).
     run_id : str
         Unique run identifier (embedded in header).
     dataset_path : str

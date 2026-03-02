@@ -14,7 +14,6 @@ class FlagRow:
     status: str = "Open"
     id: str = ""
     enumerator_id: str = ""
-    module: str = ""
     column_name: str = ""
     observed_value: str = ""
     rule_reference: str = ""
@@ -24,7 +23,7 @@ class FlagRow:
     # Column order for CSV output
     FIELD_ORDER: tuple[str, ...] = (
         "run_id", "check_id", "check_name", "severity", "status",
-        "id", "enumerator_id", "module", "column_name",
+        "id", "enumerator_id", "column_name",
         "observed_value", "rule_reference", "message", "created_at",
     )
 

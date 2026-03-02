@@ -117,9 +117,17 @@ class TestEmitHeader:
 # ---------------------------------------------------------------------------
 
 class TestEmitSetup:
-    def test_use_command(self, base_mapping, base_config):
+    def test_use_command_for_dta(self, base_mapping, base_config):
         result = _emit_setup("/data/survey.dta", base_config, base_mapping, ["resp_id", "age"])
         assert 'use "/data/survey.dta", clear' in result
+
+    def test_import_delimited_for_csv(self, base_mapping, base_config):
+        result = _emit_setup("/data/survey.csv", base_config, base_mapping, ["resp_id"])
+        assert 'import delimited using "/data/survey.csv", clear' in result
+
+    def test_import_excel_for_xlsx(self, base_mapping, base_config):
+        result = _emit_setup("/data/survey.xlsx", base_config, base_mapping, ["resp_id"])
+        assert 'import excel using "/data/survey.xlsx", firstrow clear' in result
 
     def test_backslash_normalization(self, base_mapping, base_config):
         result = _emit_setup("C:\\Users\\data\\survey.dta", base_config, base_mapping, [])
@@ -230,7 +238,7 @@ class TestEmitChk004:
         assert "Skipped" in result
 
     def test_excludes_mapping_columns(self, base_mapping, base_config):
-        columns = ["resp_id", "enum_id", "date", "module", "income"]
+        columns = ["resp_id", "enum_id", "date", "income"]
         result = _emit_chk004(base_mapping, base_config, columns)
         # Only 'income' should appear as an analysis column
         assert "income" in result
@@ -442,7 +450,7 @@ class TestGenerateDofile:
             run_id="test-run-001",
             dataset_path="/data/survey.dta",
             out_path=out,
-            columns=["resp_id", "enum_id", "date", "module", "income", "age"],
+            columns=["resp_id", "enum_id", "date", "income", "age"],
         )
         assert result == out
         assert out.exists()

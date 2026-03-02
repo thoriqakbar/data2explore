@@ -32,7 +32,6 @@ def run(
     min_rows_per_enum = config.get("missingness_enumerator_min_rows", 10)
 
     id_col = mapping.get("id", "")
-    module_col = mapping.get("module", "")
 
     # Columns to analyse: all except the mapping columns themselves
     mapping_cols = {v for v in mapping.values() if v}
@@ -72,7 +71,6 @@ def run(
                         severity=severity,
                         id="",
                         enumerator_id=str(enum_id),
-                        module="",
                         column_name=col,
                         observed_value=f"{enum_missing}/{len(group)} ({enum_rate:.1%})",
                         rule_reference=f"enumerator rate {enum_rate:.1%} > {deviation_factor}x baseline {baseline_rate:.1%}",

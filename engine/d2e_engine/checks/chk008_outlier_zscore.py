@@ -30,7 +30,6 @@ def run(
 
     id_col = mapping.get("id", "")
     enum_col = mapping.get("enumerator_id", "")
-    module_col = mapping.get("module", "")
 
     # Build lookup of mean/std from summarize_numeric
     stats_by_col: dict[str, dict[str, Any]] = {}
@@ -65,7 +64,6 @@ def run(
                         severity=SEVERITY,
                         id=row_data.get(id_col, "") if id_col and id_col in df.columns else "",
                         enumerator_id=row_data.get(enum_col, "") if enum_col and enum_col in df.columns else "",
-                        module=row_data.get(module_col, "") if module_col and module_col in df.columns else "",
                         column_name=col,
                         observed_value=val,
                         rule_reference=f"|z| > {threshold}",

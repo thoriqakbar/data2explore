@@ -89,7 +89,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
     if (!onExportFlags) return;
     const headers: (keyof FlagRow)[] = [
       "run_id", "check_id", "check_name", "severity", "status",
-      "id", "enumerator_id", "module", "column_name", "observed_value",
+      "id", "enumerator_id", "column_name", "observed_value",
       "rule_reference", "message", "created_at",
     ];
     const sorted = [...filteredFlags].sort((a, b) =>

@@ -5,14 +5,12 @@ const FIELD_TOOLTIPS: Record<keyof MappingConfig, string> = {
   id: "Unique row identifier. Used by CHK-001 (Duplicate ID), CHK-005 (Range), CHK-008 (Outlier), CHK-012 (Allowed Values).",
   enumerator_id: "Enumerator/interviewer ID. Used by CHK-004 (Missingness by Enumerator), CHK-009 (Enumerator Anomaly Rate).",
   survey_date: "Date of interview. Used for performance metrics (daily completions, active days, date range).",
-  module: "Survey module/section. Shown in flag details for context.",
 };
 
 const SKIP_CHECKS: Record<keyof MappingConfig, string[]> = {
   id: ["CHK-001 (Duplicate ID)"],
   enumerator_id: ["CHK-004 (Missingness by Enumerator)", "CHK-009 (Enumerator Anomaly Rate)"],
   survey_date: ["Performance metrics (daily completions, enumerator stats)"],
-  module: [],
 };
 
 const RECOMMENDED_FIELDS: { key: keyof MappingConfig; label: string }[] = [
@@ -21,11 +19,7 @@ const RECOMMENDED_FIELDS: { key: keyof MappingConfig; label: string }[] = [
   { key: "survey_date", label: "Survey Date" },
 ];
 
-const OPTIONAL_FIELDS: { key: keyof MappingConfig; label: string }[] = [
-  { key: "module", label: "Module" },
-];
-
-const ALL_FIELDS = [...RECOMMENDED_FIELDS, ...OPTIONAL_FIELDS];
+const ALL_FIELDS = RECOMMENDED_FIELDS;
 
 interface Props {
   profileResult: ProfileOutput;
@@ -124,7 +118,6 @@ export function MappingStep({
 
       <div className="grid gap-4 max-w-md">
         {RECOMMENDED_FIELDS.map((f) => renderDropdown(f, true))}
-        {OPTIONAL_FIELDS.map((f) => renderDropdown(f, false))}
       </div>
 
       {hasDuplicates && (

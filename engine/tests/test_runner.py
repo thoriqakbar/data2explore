@@ -56,7 +56,6 @@ class TestRunner:
             "resp_id": ["R1", "R1"],  # duplicate
             "enum_id": ["E1", "E1"],
             "date": ["2025-01-01", "2025-01-01"],
-            "module": ["A", "A"],
         })
         # This should not crash even with minimal data
         flags, skipped = run_checks(df, base_mapping, base_config, fixed_run_id)

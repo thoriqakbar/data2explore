@@ -31,7 +31,6 @@ def run(
 
     id_col = mapping.get("id", "")
     enum_col = mapping.get("enumerator_id", "")
-    module_col = mapping.get("module", "")
 
     flags: list[FlagRow] = []
 
@@ -64,7 +63,6 @@ def run(
                         severity=SEVERITY,
                         id=row_data.get(id_col, "") if id_col and id_col in df.columns else "",
                         enumerator_id=row_data.get(enum_col, "") if enum_col and enum_col in df.columns else "",
-                        module=row_data.get(module_col, "") if module_col and module_col in df.columns else "",
                         column_name=col,
                         observed_value=str_val,
                         rule_reference=f"value '{str_val}' not in {{{allowed_display}}}",

@@ -3,7 +3,6 @@ import type { FlagRow } from "../../../../shared/index";
 export type ProblemRecordGroup = {
   id: string;
   enumerator_id: string;
-  module: string;
   flags: FlagRow[];
 };
 
@@ -78,12 +77,10 @@ export function buildProblemSections(flags: FlagRow[]): ProblemSection[] {
       if (existing) {
         existing.flags.push(flag);
         if (!existing.enumerator_id && flag.enumerator_id) existing.enumerator_id = flag.enumerator_id;
-        if (!existing.module && flag.module) existing.module = flag.module;
       } else {
         recordMap.set(recordKey, {
           id: recordKey,
           enumerator_id: flag.enumerator_id,
-          module: flag.module,
           flags: [flag],
         });
       }

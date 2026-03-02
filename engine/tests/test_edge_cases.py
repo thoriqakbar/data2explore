@@ -15,7 +15,7 @@ class TestEdgeCases:
             "resp_id": pd.Series([], dtype="str"),
             "enum_id": pd.Series([], dtype="str"),
             "date": pd.Series([], dtype="str"),
-            "module": pd.Series([], dtype="str"),
+
             "duration_minutes": pd.Series([], dtype="float64"),
         })
         flags, skipped = run_checks(df, base_mapping, base_config, fixed_run_id)
@@ -27,7 +27,7 @@ class TestEdgeCases:
             "resp_id": ["R1"],
             "enum_id": ["E1"],
             "date": ["2025-01-01"],
-            "module": ["A"],
+
             "income": [500],
             "duration_minutes": [25],
         })
@@ -40,7 +40,7 @@ class TestEdgeCases:
             "resp_id": ["R1", "R2", "R3"],
             "enum_id": ["E1", "E1", "E1"],
             "date": ["2025-01-01", "2025-01-02", "2025-01-03"],
-            "module": ["A", "A", "A"],
+
             "all_null": [None, None, None],
         })
         flags, skipped = run_checks(df, base_mapping, base_config, fixed_run_id)
@@ -52,7 +52,7 @@ class TestEdgeCases:
             "resp_id": [f"R{i}" for i in range(10)],
             "enum_id": ["E1"] * 10,
             "date": ["2025-01-01"] * 10,
-            "module": ["A"] * 10,
+
         }
         for i in range(500):
             data[f"col_{i:04d}"] = list(range(10))
@@ -66,7 +66,7 @@ class TestEdgeCases:
             "resp_id": ["R1", "R2"],
             "enum_id": ["E1", "E1"],
             "date": ["2025-01-01", "2025-01-02"],
-            "module": ["A", "A"],
+
             "income (USD)": [500, 600],
             "score.v2": [80, 90],
         })
@@ -79,7 +79,7 @@ class TestEdgeCases:
             "resp_id": ["R1", "R2", "R3"],
             "enum_id": ["E1", "E1", "E1"],
             "date": ["2025-01-01", "2025-01-02", "2025-01-03"],
-            "module": ["A", "A", "A"],
+
             "mixed": [100, "text", None],
         })
         flags, skipped = run_checks(df, base_mapping, base_config, fixed_run_id)
@@ -91,7 +91,7 @@ class TestEdgeCases:
             "resp_id": [f"R{i}" for i in range(10)],
             "enum_id": ["E1"] * 10,
             "date": ["2025-01-01"] * 10,
-            "module": ["A"] * 10,
+
             "score": [42] * 10,
         })
         flags, skipped = run_checks(df, base_mapping, base_config, fixed_run_id)
@@ -104,7 +104,7 @@ class TestEdgeCases:
             "resp_id": [f"R{i}" for i in range(15)],
             "enum_id": ["E1"] * 15,
             "date": ["2025-01-01"] * 15,
-            "module": ["A"] * 15,
+
             "score": list(range(15)),
         })
         flags, skipped = run_checks(df, base_mapping, base_config, fixed_run_id)

@@ -29,7 +29,6 @@ def run(
         return []
 
     enum_col = mapping.get("enumerator_id", "")
-    module_col = mapping.get("module", "")
 
     # Find values that appear more than once (excluding NaN)
     counts = df[id_col].value_counts()
@@ -50,7 +49,6 @@ def run(
                 severity=SEVERITY,
                 id=val,
                 enumerator_id=first_row.get(enum_col, "") if enum_col else "",
-                module=first_row.get(module_col, "") if module_col else "",
                 column_name=id_col,
                 observed_value=val,
                 rule_reference="id appears >1 time",

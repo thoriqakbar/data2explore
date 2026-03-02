@@ -40,16 +40,14 @@ class TestCHK001DuplicateId:
         flags = run(df, mapping, base_config, fixed_run_id)
         assert len(flags) == 0
 
-    def test_enriches_enumerator_and_module(self, base_mapping, base_config, fixed_run_id):
+    def test_enriches_enumerator(self, base_mapping, base_config, fixed_run_id):
         df = pd.DataFrame({
             "resp_id": ["R1", "R1"],
             "enum_id": ["E1", "E2"],
-            "module": ["A", "B"],
         })
         flags = run(df, base_mapping, base_config, fixed_run_id)
         assert len(flags) == 1
         assert flags[0].enumerator_id == "E1"
-        assert flags[0].module == "A"
 
     def test_simple_df_fixture(self, simple_df, base_mapping, base_config, fixed_run_id):
         """simple_df has R001 duplicated at rows 0 and 8."""

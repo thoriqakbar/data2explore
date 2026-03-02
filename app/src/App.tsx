@@ -46,14 +46,12 @@ const MAPPING_FIELDS: (keyof MappingConfig)[] = [
   "id",
   "enumerator_id",
   "survey_date",
-  "module",
 ];
 
 const MAPPING_ALIASES: Record<keyof MappingConfig, string[]> = {
   id: ["id", "resp_id", "respondent_id", "response_id", "record_id", "uid", "unique_id", "key", "_id", "submission_id"],
   enumerator_id: ["enumerator_id", "interviewer_id", "enum_id", "enumerator", "interviewer", "collector_id", "agent_id"],
   survey_date: ["survey_date", "date", "interview_date", "submission_date", "created_date", "start_date", "datetime", "timestamp"],
-  module: ["module", "section", "form", "form_name", "questionnaire"],
 };
 
 const DEFAULT_DURATION: DurationMapping = { mode: "none" };
@@ -810,8 +808,22 @@ export function App() {
   const errorInfo = error ? classifyError(error) : null;
 
   return (
-    <main className="app-card max-w-3xl mx-auto my-8 px-6 py-8 rounded-2xl font-sans">
-      <Stepper currentStep={step} />
+    <main className="app-card max-w-3xl mx-auto my-8 rounded-2xl font-sans">
+      <div className="sticky top-0 z-20 app-card-header px-6 pt-6 pb-0 rounded-t-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-lg font-brand font-semibold text-slate-800 tracking-tight">
+            data2explore
+          </h1>
+          <span className="text-[11px] text-slate-400 inline-flex items-center gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-indigo-400">
+              <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z" clipRule="evenodd" />
+            </svg>
+            Local only
+          </span>
+        </div>
+        <Stepper currentStep={step} />
+      </div>
+      <div className="px-6 pb-8 pt-2">
 
       {step === "import" && (
         <StepPanel key="import">
@@ -918,6 +930,8 @@ export function App() {
           />
         </div>
       )}
+      </div>
+
       {undoToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-slate-800 text-white rounded-lg text-sm flex items-center gap-4 shadow-lg max-w-md">
           <span>{undoToast.message}</span>

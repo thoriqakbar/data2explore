@@ -84,7 +84,6 @@ def run(
                 severity=severity,
                 id="",
                 enumerator_id=str(enum_id),
-                module="",
                 column_name="",
                 observed_value=f"{count} flags ({rate:.1%} of {row_count} rows)",
                 rule_reference=f"flags {count} > {deviation_factor}x median {median_count:.0f}",

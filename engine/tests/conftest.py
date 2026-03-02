@@ -15,7 +15,6 @@ def base_mapping() -> dict[str, str]:
         "id": "resp_id",
         "enumerator_id": "enum_id",
         "survey_date": "date",
-        "module": "module",
     }
 
 
@@ -47,7 +46,6 @@ def simple_df() -> pd.DataFrame:
                 "2025-01-03", "2025-01-03", "2025-01-04", "2025-01-04",
                 "2025-01-05", "2025-01-05",
             ],
-            "module": ["A", "A", "B", "A", "B", "A", "A", "B", "A", "A"],
             "income": [500, 520, 480, 510, 490, 530, 500, 510, 500, 99999],
             "age": [30, 35, 28, 40, 32, None, 29, 31, 30, 25],
             "gender": ["M", "F", "M", "F", "M", "F", "M", "F", "M", "X"],

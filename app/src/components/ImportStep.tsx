@@ -19,22 +19,6 @@ export function ImportStep({ filePath, profileResult, error, onSelectFile, onLoa
 
   return (
     <div className="space-y-6">
-      {/* Hero / branding */}
-      <div>
-        <h1 className="text-2xl font-brand font-semibold text-slate-800 tracking-tight brand-enter">
-          data2explore
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Quick data quality checks for survey data
-        </p>
-        <div className="privacy-note mt-3 inline-flex items-center gap-1.5 text-xs text-slate-400">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-indigo-400">
-            <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z" clipRule="evenodd" />
-          </svg>
-          Your data never leaves this computer.
-        </div>
-      </div>
-
       {/* How it works mini-flow */}
       <div className="flex items-center gap-1.5 text-xs text-gray-400">
         {FLOW_STEPS.map((s, i) => (

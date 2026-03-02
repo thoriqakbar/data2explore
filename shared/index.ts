@@ -2,7 +2,6 @@ export interface MappingConfig {
   id?: string;
   enumerator_id?: string;
   survey_date?: string;
-  module?: string;
 }
 
 export interface HistogramBin {
@@ -58,7 +57,6 @@ export interface FlagRow {
   status: string;
   id: string;
   enumerator_id: string;
-  module: string;
   column_name: string;
   observed_value: string;
   rule_reference: string;
