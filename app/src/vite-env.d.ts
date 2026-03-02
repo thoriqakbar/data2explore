@@ -27,7 +27,7 @@ interface Window {
   d2e: {
     runEngine: (payload: RunEnginePayload) => Promise<EngineResponse>;
     selectFile: () => Promise<string | null>;
-    saveFile: (defaultName?: string, fileType?: "xlsx" | "csv" | "json") => Promise<string | null>;
+    saveFile: (defaultName?: string, fileType?: "xlsx" | "csv" | "json" | "do") => Promise<string | null>;
     writeTempMapping: (mapping: Record<string, string>) => Promise<string>;
     writeTempConfig: (config: Record<string, unknown>) => Promise<string>;
     saveConfig: (config: unknown) => Promise<string | null>;
@@ -37,5 +37,6 @@ interface Window {
     loadDecisions: (outDir: string) => Promise<unknown | null>;
     saveDecisions: (outDir: string, data: unknown) => Promise<boolean>;
     importReviewedCSV: () => Promise<string | null>;
+    readDofile: (outDir: string) => Promise<string | null>;
   };
 }

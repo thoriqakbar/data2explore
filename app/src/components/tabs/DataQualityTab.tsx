@@ -12,6 +12,7 @@ interface Props {
   onResolveFlags?: (flags: FlagRow[]) => void;
   onUnresolveFlags?: (flags: FlagRow[]) => void;
   onImportReviewedCsv?: () => void;
+  onExportDofile?: () => void;
   suppressedFlags?: FlagRow[];
   decisions?: Record<string, FlagDecision>;
 }
@@ -30,7 +31,7 @@ function checkLabel(checkId: string): string {
   return categoryForCheckId(checkId);
 }
 
-export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, onResolveFlags, onUnresolveFlags, onImportReviewedCsv, suppressedFlags, decisions }: Props) {
+export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, onResolveFlags, onUnresolveFlags, onImportReviewedCsv, onExportDofile, suppressedFlags, decisions }: Props) {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [enumeratorFilter, setEnumeratorFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
@@ -318,6 +319,14 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                     className="px-3 py-1.5 border border-indigo-300 text-indigo-700 rounded-md hover:bg-indigo-50 font-medium transition-colors"
                   >
                     Import Reviewed CSV
+                  </button>
+                )}
+                {onExportDofile && (
+                  <button
+                    onClick={onExportDofile}
+                    className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 font-medium transition-colors"
+                  >
+                    Export Stata .do
                   </button>
                 )}
                 {onExportFlags && (

@@ -115,6 +115,23 @@ def cmd_check(args: argparse.Namespace) -> int:
     summary["total_before_suppression"] = len(all_flags)
     summary_to_json(summary, out_dir / "summary.json")
 
+    # Generate Stata .do replication script
+    from d2e_engine.dofile import generate_dofile
+
+    try:
+        do_path = generate_dofile(
+            config=config,
+            mapping=mapping,
+            run_id=run_id,
+            dataset_path=args.input,
+            out_path=out_dir / "export_checks.do",
+            selected_check_ids=selected_check_ids,
+            columns=list(df.columns),
+        )
+        print(f"Wrote Stata .do file to {do_path}")
+    except Exception:
+        logger.warning("Could not generate Stata .do file", exc_info=True)
+
     print(f"Check complete: {len(flags)} active flag(s), {len(suppressed_flags)} suppressed, written to {out_dir}")
     if skipped:
         print(f"  Skipped {len(skipped)} check(s): {', '.join(s['check_id'] for s in skipped)}")

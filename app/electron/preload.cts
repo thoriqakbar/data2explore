@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld("d2e", {
   runEngine: (payload: RunEnginePayload) =>
     ipcRenderer.invoke("engine:run", payload),
   selectFile: () => ipcRenderer.invoke("dialog:select-file") as Promise<string | null>,
-  saveFile: (defaultName?: string, fileType?: "xlsx" | "csv" | "json") =>
+  saveFile: (defaultName?: string, fileType?: "xlsx" | "csv" | "json" | "do") =>
     ipcRenderer.invoke("dialog:save-file", defaultName, fileType) as Promise<string | null>,
   writeTempMapping: (mapping: Record<string, string>) =>
     ipcRenderer.invoke("engine:write-temp-mapping", mapping) as Promise<string>,
@@ -40,4 +40,6 @@ contextBridge.exposeInMainWorld("d2e", {
     ipcRenderer.invoke("decisions:save", outDir, data) as Promise<boolean>,
   importReviewedCSV: () =>
     ipcRenderer.invoke("decisions:import-csv") as Promise<string | null>,
+  readDofile: (outDir: string) =>
+    ipcRenderer.invoke("dofile:read", outDir) as Promise<string | null>,
 });

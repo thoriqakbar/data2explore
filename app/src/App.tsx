@@ -617,6 +617,27 @@ export function App() {
     }
   }, [filePath]);
 
+  const handleExportDofile = useCallback(async () => {
+    if (!filePath) return;
+    setExportMessage(null);
+    try {
+      const outDir = filePath + ".d2e-checks";
+      const content = await window.d2e.readDofile(outDir);
+      if (!content) {
+        setExportMessage("No Stata .do file found — run checks first.");
+        return;
+      }
+      const dataName = filePath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, "") ?? "d2e";
+      const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const savePath = await window.d2e.saveFile(`${datePrefix}_${dataName}_checks.do`, "do");
+      if (!savePath) return;
+      await window.d2e.writeFile(savePath, content);
+      setExportMessage(`Stata .do file saved to ${savePath}`);
+    } catch (err) {
+      setExportMessage(`Stata .do export failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [filePath]);
+
   const saveDecisionsToDisk = useCallback(async (updated: Record<string, FlagDecision>) => {
     if (!filePath) return;
     const outDir = filePath + ".d2e-checks";
@@ -864,6 +885,7 @@ export function App() {
             onResolveFlags={handleResolveFlags}
             onUnresolveFlags={handleUnresolveFlags}
             onImportReviewedCsv={handleImportReviewedCsv}
+            onExportDofile={handleExportDofile}
             suppressedFlags={suppressedFlags}
             decisions={decisions}
           />

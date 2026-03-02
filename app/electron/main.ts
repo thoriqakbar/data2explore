@@ -151,13 +151,14 @@ ipcMain.handle("dialog:select-file", async (event) => {
   return result.filePaths[0];
 });
 
-ipcMain.handle("dialog:save-file", async (event, defaultName?: string, fileType: "xlsx" | "csv" | "json" = "xlsx") => {
+ipcMain.handle("dialog:save-file", async (event, defaultName?: string, fileType: "xlsx" | "csv" | "json" | "do" = "xlsx") => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return null;
-  const filtersByType: Record<"xlsx" | "csv" | "json", FileFilter[]> = {
+  const filtersByType: Record<"xlsx" | "csv" | "json" | "do", FileFilter[]> = {
     xlsx: [{ name: "Excel Workbook", extensions: ["xlsx"] }],
     csv: [{ name: "CSV", extensions: ["csv"] }],
     json: [{ name: "JSON", extensions: ["json"] }],
+    do: [{ name: "Stata Do-file", extensions: ["do"] }],
   };
   const result = await dialog.showSaveDialog(win, {
     defaultPath: defaultName ?? "d2e-report.xlsx",
@@ -247,6 +248,15 @@ ipcMain.handle("decisions:import-csv", async (event) => {
   if (result.canceled || result.filePaths.length === 0) return null;
   const content = await readFile(result.filePaths[0], "utf-8");
   return content;
+});
+
+ipcMain.handle("dofile:read", async (_event, outDir: string) => {
+  const doPath = path.join(outDir, "export_checks.do");
+  try {
+    return await readFile(doPath, "utf-8");
+  } catch {
+    return null;
+  }
 });
 
 ipcMain.handle("app:sample-path", async () => {

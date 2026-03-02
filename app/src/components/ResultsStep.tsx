@@ -26,6 +26,7 @@ interface Props {
   onResolveFlags?: (flags: FlagRow[]) => void;
   onUnresolveFlags?: (flags: FlagRow[]) => void;
   onImportReviewedCsv?: () => void;
+  onExportDofile?: () => void;
   suppressedFlags?: FlagRow[];
   decisions?: Record<string, FlagDecision>;
 }
@@ -42,6 +43,7 @@ export function ResultsStep({
   onResolveFlags,
   onUnresolveFlags,
   onImportReviewedCsv,
+  onExportDofile,
   suppressedFlags,
   decisions,
 }: Props) {
@@ -97,6 +99,7 @@ export function ResultsStep({
             onResolveFlags={onResolveFlags}
             onUnresolveFlags={onUnresolveFlags}
             onImportReviewedCsv={onImportReviewedCsv}
+            onExportDofile={onExportDofile}
             suppressedFlags={suppressedFlags}
             decisions={decisions}
           />
