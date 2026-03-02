@@ -12,7 +12,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "allowed_values_rules": [],
     "excluded_columns": [],
     # CHK-010 duration anomaly
+    "duration_mode": "column",  # "column" | "start_end" | "none"
     "duration_column": "duration_minutes",
+    "duration_unit": "minutes",  # "minutes" | "seconds"
+    "duration_start_column": "",
+    "duration_end_column": "",
     "min_duration_minutes": 5,
     "max_duration_minutes": 120,
     "heaping_multiple": 5,

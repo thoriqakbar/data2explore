@@ -220,6 +220,17 @@ ipcMain.handle("file:write", async (_event, filePath: string, content: string) =
   return true;
 });
 
+ipcMain.handle("app:sample-path", async () => {
+  const repoRoot = path.resolve(__dirname, "../..");
+  const samplePath = path.join(repoRoot, "samples", "sample_survey.csv");
+  try {
+    await readFile(samplePath);
+    return samplePath;
+  } catch {
+    return null;
+  }
+});
+
 app.whenReady().then(() => {
   createWindow();
   app.on("activate", () => {

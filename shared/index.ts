@@ -27,6 +27,7 @@ export interface SchemaColumnProfile {
   dtype: string;
   missing_count: number;
   non_missing_count: number;
+  sample_values?: string[];
 }
 
 export interface ProfileOutput {
@@ -162,9 +163,18 @@ export interface AllowedValuesRule {
   values: string[];
 }
 
+export interface DurationMapping {
+  mode: "column" | "start_end" | "none";
+  duration_column?: string;
+  duration_unit?: "minutes" | "seconds";
+  start_column?: string;
+  end_column?: string;
+}
+
 export interface ProjectConfig {
   version: "1";
   mapping: MappingConfig;
+  duration?: DurationMapping;
   range_rules: RangeRule[];
   allowed_values_rules?: AllowedValuesRule[];
   excluded_columns?: string[];

@@ -17,20 +17,56 @@ SEVERITY = "Warning"
 REQUIRED_MAPPING_FIELDS = ()
 
 
+def _resolve_duration_series(df: pd.DataFrame, config: dict[str, Any]) -> tuple[pd.Series | None, str]:
+    """Resolve a duration series (in minutes) based on config mode.
+
+    Returns (series_or_None, label_for_column_name).
+    """
+    mode = config.get("duration_mode", "column")
+
+    if mode == "none":
+        return None, ""
+
+    if mode == "start_end":
+        start_col = config.get("duration_start_column", "")
+        end_col = config.get("duration_end_column", "")
+        if not start_col or not end_col:
+            logger.warning("CHK-010: start_end mode but missing column names — skipping")
+            return None, ""
+        if start_col not in df.columns or end_col not in df.columns:
+            logger.warning("CHK-010: start_end columns '%s'/'%s' not found — skipping", start_col, end_col)
+            return None, ""
+        start = pd.to_datetime(df[start_col], errors="coerce")
+        end = pd.to_datetime(df[end_col], errors="coerce")
+        duration_minutes = (end - start).dt.total_seconds() / 60
+        return duration_minutes, f"{start_col}→{end_col}"
+
+    # Default: column mode
+    duration_col = config.get("duration_column", "duration_minutes")
+    if not duration_col or duration_col not in df.columns:
+        logger.warning("CHK-010: duration column '%s' not found — skipping", duration_col)
+        return None, ""
+
+    series = pd.to_numeric(df[duration_col], errors="coerce")
+    unit = config.get("duration_unit", "minutes")
+    if unit == "seconds":
+        series = series / 60
+    return series, duration_col
+
+
 def run(
     df: pd.DataFrame,
     mapping: dict[str, str],
     config: dict[str, Any],
     run_id: str,
 ) -> list[FlagRow]:
-    duration_col = config.get("duration_column", "duration_minutes")
     min_dur = config.get("min_duration_minutes", 5)
     max_dur = config.get("max_duration_minutes", 120)
     heaping_multiple = config.get("heaping_multiple", 5)
     heaping_ceiling = config.get("heaping_ceiling", 15)
 
-    if duration_col not in df.columns:
-        logger.warning("CHK-010: duration column '%s' not found — skipping", duration_col)
+    duration_series, col_label = _resolve_duration_series(df, config)
+    if duration_series is None:
         return []
 
     id_col = mapping.get("id", "")
@@ -39,12 +75,8 @@ def run(
 
     flags: list[FlagRow] = []
 
-    for idx, val in df[duration_col].items():
-        if pd.isna(val) or val == "":
-            continue
-        try:
-            num = float(val)
-        except (ValueError, TypeError):
+    for idx, num in duration_series.items():
+        if pd.isna(num):
             continue
 
         subtype: str | None = None
@@ -54,20 +86,20 @@ def run(
         if num <= 0:
             subtype = "impossible"
             severity = "Critical"
-            message = f"Impossible duration: {num} minutes (must be > 0)"
+            message = f"Impossible duration: {num:.1f} minutes (must be > 0)"
         elif num < min_dur:
             subtype = "short"
-            message = f"Short interview: {num} minutes (threshold: {min_dur})"
+            message = f"Short interview: {num:.1f} minutes (threshold: {min_dur})"
         elif num > max_dur:
             subtype = "long"
-            message = f"Long interview: {num} minutes (threshold: {max_dur})"
+            message = f"Long interview: {num:.1f} minutes (threshold: {max_dur})"
         elif (
             heaping_multiple > 0
             and num <= heaping_ceiling
             and num % heaping_multiple == 0
         ):
             subtype = "heaped"
-            message = f"Heaped duration: {num} minutes (multiple of {heaping_multiple}, ceiling {heaping_ceiling})"
+            message = f"Heaped duration: {num:.1f} minutes (multiple of {heaping_multiple}, ceiling {heaping_ceiling})"
 
         if subtype is None:
             continue
@@ -82,8 +114,8 @@ def run(
                 id=row_data.get(id_col, "") if id_col and id_col in df.columns else "",
                 enumerator_id=row_data.get(enum_col, "") if enum_col and enum_col in df.columns else "",
                 module=row_data.get(module_col, "") if module_col and module_col in df.columns else "",
-                column_name=duration_col,
-                observed_value=val,
+                column_name=col_label,
+                observed_value=f"{num:.1f}",
                 rule_reference=f"duration_{subtype}",
                 message=message,
             )

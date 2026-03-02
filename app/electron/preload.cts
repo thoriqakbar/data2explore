@@ -32,4 +32,6 @@ contextBridge.exposeInMainWorld("d2e", {
     ipcRenderer.invoke("config:load") as Promise<unknown | null>,
   writeFile: (path: string, content: string) =>
     ipcRenderer.invoke("file:write", path, content) as Promise<boolean>,
+  getSamplePath: () =>
+    ipcRenderer.invoke("app:sample-path") as Promise<string | null>,
 });

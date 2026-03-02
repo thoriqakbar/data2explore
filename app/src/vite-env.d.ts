@@ -33,5 +33,6 @@ interface Window {
     saveConfig: (config: unknown) => Promise<string | null>;
     loadConfig: () => Promise<unknown | null>;
     writeFile: (path: string, content: string) => Promise<boolean>;
+    getSamplePath: () => Promise<string | null>;
   };
 }

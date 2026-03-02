@@ -83,10 +83,29 @@ def build_performance(
     }
 
     # --- Duration stats ---
+    duration_mode = config.get("duration_mode", "column")
     duration_col = config.get("duration_column", "duration_minutes")
+    dur_label = ""
+    dur_series_raw: pd.Series | None = None
+
+    if duration_mode == "start_end":
+        start_col = config.get("duration_start_column", "")
+        end_col = config.get("duration_end_column", "")
+        if start_col and end_col and start_col in df.columns and end_col in df.columns:
+            start = pd.to_datetime(df[start_col], errors="coerce")
+            end = pd.to_datetime(df[end_col], errors="coerce")
+            dur_series_raw = (end - start).dt.total_seconds() / 60
+            dur_label = f"{start_col}→{end_col}"
+    elif duration_mode != "none" and duration_col and duration_col in df.columns:
+        dur_series_raw = pd.to_numeric(df[duration_col], errors="coerce")
+        unit = config.get("duration_unit", "minutes")
+        if unit == "seconds":
+            dur_series_raw = dur_series_raw / 60
+        dur_label = duration_col
+
     duration_stats: dict[str, Any] | None = None
-    if duration_col and duration_col in df.columns:
-        dur_series = pd.to_numeric(df[duration_col], errors="coerce").dropna()
+    if dur_series_raw is not None:
+        dur_series = dur_series_raw.dropna()
         if len(dur_series) > 0:
             counts, bin_edges = np.histogram(dur_series.values, bins=20)
             histogram = [
@@ -94,7 +113,7 @@ def build_performance(
                 for i in range(len(counts))
             ]
             duration_stats = {
-                "column": duration_col,
+                "column": dur_label,
                 "overall_mean": float(dur_series.mean()),
                 "overall_median": float(dur_series.median()),
                 "overall_std": float(dur_series.std()) if len(dur_series) > 1 else None,
@@ -137,8 +156,8 @@ def build_performance(
                 "flag_count": flag_counts_by_enum.get(str(enum_id), 0),
             }
 
-            if duration_col and duration_col in group.columns:
-                dur = pd.to_numeric(group[duration_col], errors="coerce").dropna()
+            if dur_series_raw is not None:
+                dur = dur_series_raw.loc[group.index].dropna()
                 if len(dur) > 0:
                     row["avg_duration"] = round(float(dur.mean()), 1)
                     row["median_duration"] = round(float(dur.median()), 1)
