@@ -37,7 +37,7 @@ type LoadedProjectConfig = {
 };
 
 function flagKeyStr(flag: FlagRow): string {
-  return `${flag.id}|${flag.check_id}|${flag.column_name}`;
+  return `${flag.id}|${flag.check_id}|${flag.column_name}|${flag.enumerator_id}|${flag.survey_date}`;
 }
 
 const APP_VERSION = "0.1.0";

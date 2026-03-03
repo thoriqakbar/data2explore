@@ -32,12 +32,15 @@ class Decision:
 
 def flag_key_str(flag: FlagRow) -> str:
     """Build a pipe-delimited decision key from a flag."""
-    return f"{flag.id}|{flag.check_id}|{flag.column_name}"
+    return f"{flag.id}|{flag.check_id}|{flag.column_name}|{flag.enumerator_id}|{flag.survey_date}"
 
 
 def flag_key_from_dict(flag: dict[str, str]) -> str:
     """Build a pipe-delimited decision key from a flag dict."""
-    return f"{flag.get('id', '')}|{flag.get('check_id', '')}|{flag.get('column_name', '')}"
+    return (
+        f"{flag.get('id', '')}|{flag.get('check_id', '')}|{flag.get('column_name', '')}"
+        f"|{flag.get('enumerator_id', '')}|{flag.get('survey_date', '')}"
+    )
 
 
 def load_decisions(path: str | Path | None) -> dict[str, Decision]:

@@ -32,11 +32,15 @@ def _make_flag(**overrides):
 class TestFlagKeyStr:
     def test_basic(self):
         f = _make_flag(id="R1", check_id="CHK-005", column_name="income")
-        assert flag_key_str(f) == "R1|CHK-005|income"
+        assert flag_key_str(f) == "R1|CHK-005|income||"
+
+    def test_with_enumerator_and_date(self):
+        f = _make_flag(id="R1", check_id="CHK-005", column_name="income", enumerator_id="E04", survey_date="2025-01-15")
+        assert flag_key_str(f) == "R1|CHK-005|income|E04|2025-01-15"
 
     def test_empty_fields(self):
         f = _make_flag(id="", check_id="CHK-001", column_name="")
-        assert flag_key_str(f) == "|CHK-001|"
+        assert flag_key_str(f) == "|CHK-001|||"
 
 
 class TestLoadDecisions:
@@ -58,7 +62,7 @@ class TestLoadDecisions:
             "dataset_hash": "abc",
             "updated_at": "2026-01-01T00:00:00Z",
             "decisions": {
-                "R1|CHK-001|col": {
+                "R1|CHK-001|col||": {
                     "status": "dismissed",
                     "reason": "accepted",
                     "note": "OK",
@@ -73,8 +77,8 @@ class TestLoadDecisions:
             path = f.name
         decisions = load_decisions(path)
         assert len(decisions) == 1
-        assert "R1|CHK-001|col" in decisions
-        d = decisions["R1|CHK-001|col"]
+        assert "R1|CHK-001|col||" in decisions
+        d = decisions["R1|CHK-001|col||"]
         assert d.status == "dismissed"
         assert d.note == "OK"
 
@@ -94,7 +98,7 @@ class TestLoadDecisions:
 class TestSaveDecisions:
     def test_roundtrip(self):
         decisions = {
-            "R1|CHK-001|col": Decision(
+            "R1|CHK-001|col||": Decision(
                 status="dismissed",
                 reason="accepted",
                 note="Test note",
@@ -111,12 +115,12 @@ class TestSaveDecisions:
                 raw = json.load(f)
             assert raw["schema_version"] == 1
             assert raw["dataset_hash"] == "hash123"
-            assert "R1|CHK-001|col" in raw["decisions"]
+            assert "R1|CHK-001|col||" in raw["decisions"]
 
             # Reload and verify
             loaded = load_decisions(path)
             assert len(loaded) == 1
-            assert loaded["R1|CHK-001|col"].note == "Test note"
+            assert loaded["R1|CHK-001|col||"].note == "Test note"
 
 
 class TestApplyDecisions:
@@ -132,7 +136,7 @@ class TestApplyDecisions:
             _make_flag(id="R2", check_id="CHK-001", column_name="col"),
         ]
         decisions = {
-            "R1|CHK-001|col": Decision(status="dismissed"),
+            "R1|CHK-001|col||": Decision(status="dismissed"),
         }
         active, suppressed = apply_decisions(flags, decisions)
         assert len(active) == 1
@@ -143,7 +147,7 @@ class TestApplyDecisions:
     def test_open_decision_is_not_suppressed(self):
         flags = [_make_flag(id="R1", check_id="CHK-001", column_name="col")]
         decisions = {
-            "R1|CHK-001|col": Decision(status="open"),
+            "R1|CHK-001|col||": Decision(status="open"),
         }
         active, suppressed = apply_decisions(flags, decisions)
         assert len(active) == 1
@@ -161,7 +165,7 @@ class TestApplyDecisions:
     def test_all_dismissed(self):
         flags = [_make_flag(id="R1", check_id="CHK-001", column_name="col")]
         decisions = {
-            "R1|CHK-001|col": Decision(status="dismissed"),
+            "R1|CHK-001|col||": Decision(status="dismissed"),
         }
         active, suppressed = apply_decisions(flags, decisions)
         assert len(active) == 0

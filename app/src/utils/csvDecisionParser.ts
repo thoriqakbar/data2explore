@@ -38,6 +38,8 @@ export function parseReviewedCsv(csvText: string): ParseResult {
   const idIdx = headers.indexOf("id");
   const checkIdIdx = headers.indexOf("check_id");
   const columnNameIdx = headers.indexOf("column_name");
+  const enumeratorIdIdx = headers.indexOf("enumerator_id");
+  const surveyDateIdx = headers.indexOf("survey_date");
   const statusIdx = headers.indexOf("status");
   const noteIdx = headers.indexOf("note");
   const observedValueIdx = headers.indexOf("observed_value");
@@ -57,6 +59,8 @@ export function parseReviewedCsv(csvText: string): ParseResult {
     const id = fields[idIdx]?.trim() ?? "";
     const checkId = fields[checkIdIdx]?.trim() ?? "";
     const columnName = fields[columnNameIdx]?.trim() ?? "";
+    const enumeratorId = enumeratorIdIdx !== -1 ? (fields[enumeratorIdIdx]?.trim() ?? "") : "";
+    const surveyDate = surveyDateIdx !== -1 ? (fields[surveyDateIdx]?.trim() ?? "") : "";
     const status = fields[statusIdx]?.trim() ?? "";
     const note = noteIdx !== -1 ? (fields[noteIdx]?.trim() ?? "") : "";
     const observedValue = observedValueIdx !== -1 ? (fields[observedValueIdx]?.trim() ?? "") : "";
@@ -66,7 +70,7 @@ export function parseReviewedCsv(csvText: string): ParseResult {
       continue;
     }
 
-    const key = `${id}|${checkId}|${columnName}`;
+    const key = `${id}|${checkId}|${columnName}|${enumeratorId}|${surveyDate}`;
     decisions[key] = {
       status: "dismissed",
       reason: status.toLowerCase(),

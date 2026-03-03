@@ -51,6 +51,9 @@ export function ProblemRecordCard({ group, onResolveFlags }: Props) {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-gray-500">
                   Observed value: <span className="font-mono">{flag.observed_value || "\u2014"}</span>
+                  {flag.survey_date && (
+                    <> &middot; Date: <span className="font-mono">{flag.survey_date}</span></>
+                  )}
                 </p>
                 {onResolveFlags && (
                   <button
