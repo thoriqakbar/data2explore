@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+import pandas as pd
+
 
 @dataclass
 class FlagRow:
@@ -14,6 +16,7 @@ class FlagRow:
     status: str = "Open"
     id: str = ""
     enumerator_id: str = ""
+    survey_date: str = ""
     column_name: str = ""
     observed_value: str = ""
     rule_reference: str = ""
@@ -23,7 +26,7 @@ class FlagRow:
     # Column order for CSV output
     FIELD_ORDER: tuple[str, ...] = (
         "run_id", "check_id", "check_name", "severity", "status",
-        "id", "enumerator_id", "column_name",
+        "id", "enumerator_id", "survey_date", "column_name",
         "observed_value", "rule_reference", "message", "created_at",
     )
 
@@ -41,3 +44,20 @@ def build_flag_row(**kwargs: Any) -> FlagRow:
         elif key in FlagRow.FIELD_ORDER:
             cleaned[key] = str(value) if value is not None else ""
     return FlagRow(**cleaned)
+
+
+def fmt_survey_date(val: object) -> str:
+    """Best-effort format a date value as YYYY-MM-DD string."""
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return ""
+    s = str(val).strip()
+    if not s:
+        return ""
+    # Already YYYY-MM-DD or longer ISO string? Slice first 10 chars.
+    if len(s) >= 10 and s[4:5] == "-" and s[7:8] == "-":
+        return s[:10]
+    # Try pandas parsing as fallback
+    try:
+        return pd.Timestamp(val).strftime("%Y-%m-%d")
+    except Exception:
+        return s
