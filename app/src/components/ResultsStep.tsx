@@ -20,9 +20,7 @@ interface Props {
   checkResult?: CheckOutput | null;
   performanceResult?: PerformanceOutput | null;
   onStartOver: () => void;
-  onExportReport?: () => void;
   onExportFlags?: (content: string) => void;
-  exporting?: boolean;
   onResolveFlags?: (flags: FlagRow[], note: string) => void;
   onUnresolveFlags?: (flags: FlagRow[]) => void;
   onImportReviewedCsv?: () => void;
@@ -37,9 +35,7 @@ export function ResultsStep({
   checkResult,
   performanceResult,
   onStartOver,
-  onExportReport,
   onExportFlags,
-  exporting,
   onResolveFlags,
   onUnresolveFlags,
   onImportReviewedCsv,
@@ -111,15 +107,6 @@ export function ResultsStep({
 
       {/* Action buttons — always visible */}
       <div className="flex gap-3 pt-3 border-t border-gray-200">
-        {onExportReport && (
-          <button
-            onClick={onExportReport}
-            disabled={exporting}
-            className="btn-primary px-5 py-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
-          >
-            {exporting ? "Exporting..." : "Export Report"}
-          </button>
-        )}
         <button
           onClick={onStartOver}
           className="btn-secondary px-5 py-2.5 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 font-medium text-sm border border-gray-200"

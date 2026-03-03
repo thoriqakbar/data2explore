@@ -214,15 +214,15 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                   <tbody>
                     {suppressedFlags.map((flag, i) => (
                       <tr key={`sup-${flag.id}-${flag.check_id}-${flag.column_name}-${i}`} className="border-b border-slate-100 text-slate-500">
-                        <td className="py-2 px-3 font-mono text-xs">{flag.id || "\u2014"}</td>
-                        <td className="py-2 px-3 font-mono text-xs">{flag.enumerator_id || "\u2014"}</td>
-                        <td className="py-2 px-3 font-mono text-xs">{flag.survey_date || "\u2014"}</td>
+                        <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">{flag.id || "\u2014"}</td>
+                        <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">{flag.enumerator_id || "\u2014"}</td>
+                        <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">{flag.survey_date || "\u2014"}</td>
                         <td className="py-2 px-3 text-xs">
                           <span className="font-medium">{flag.check_name}</span>
                           <span className="block text-[10px] font-mono text-slate-400">{flag.check_id}</span>
                         </td>
-                        <td className="py-2 px-3 font-mono text-xs">{flag.column_name || "\u2014"}</td>
-                        <td className="py-2 px-3 text-xs max-w-[100px] truncate" title={flag.observed_value}>{flag.observed_value || "\u2014"}</td>
+                        <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">{flag.column_name || "\u2014"}</td>
+                        <td className="py-2 px-3 text-xs whitespace-nowrap max-w-[120px] truncate" title={flag.observed_value}>{flag.observed_value || "\u2014"}</td>
                         <td className="py-2 px-3 text-xs">{flag.message}</td>
                         {(() => {
                           const key = `${flag.id}|${flag.check_id}|${flag.column_name}|${flag.enumerator_id}|${flag.survey_date}`;
@@ -348,7 +348,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                 {onExportDofile && (
                   <button
                     onClick={onExportDofile}
-                    className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 font-medium transition-colors"
+                    className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-100 hover:border-slate-400 hover:text-slate-900 active:bg-slate-200 font-medium transition-colors"
                   >
                     Export Stata .do
                   </button>
@@ -358,7 +358,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                     onClick={exportFlagsCsv}
                     className="px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 font-medium transition-colors"
                   >
-                    {filtersActive ? "Export Filtered (CSV)" : "Export CSV"}
+                    Export Report
                   </button>
                 )}
               </div>
@@ -396,14 +396,14 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b-2 border-gray-300">
-                    <th className="text-left py-2 pr-3 font-medium text-gray-600">Check</th>
-                    <th className="text-left py-2 pr-3 font-medium text-gray-600">Severity</th>
-                    <th className="text-left py-2 pr-3 font-medium text-gray-600">ID</th>
-                    <th className="text-left py-2 pr-3 font-medium text-gray-600">Enumerator</th>
-                    <th className="text-left py-2 pr-3 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-2 pr-3 font-medium text-gray-600">Column</th>
-                    <th className="text-left py-2 pr-3 font-medium text-gray-600">Value</th>
-                    <th className="text-left py-2 font-medium text-gray-600">Message</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-600 whitespace-nowrap">Check</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-600 whitespace-nowrap">Severity</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-600 whitespace-nowrap">ID</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-600 whitespace-nowrap">Enumerator</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-600 whitespace-nowrap">Date</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-600 whitespace-nowrap">Column</th>
+                    <th className="text-left py-2 pr-3 font-medium text-gray-600 whitespace-nowrap">Value</th>
+                    <th className="text-left py-2 font-medium text-gray-600 whitespace-nowrap">Message</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -413,7 +413,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                         <span className="text-xs font-medium text-gray-900">{flag.check_name}</span>
                         <span className="block text-[10px] font-mono text-gray-400">{flag.check_id}</span>
                       </td>
-                      <td className="py-2 pr-3">
+                      <td className="py-2 pr-3 whitespace-nowrap">
                         <span
                           className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
                             flag.severity.toLowerCase() === "critical" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
@@ -422,11 +422,11 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                           {flag.severity}
                         </span>
                       </td>
-                      <td className="py-2 pr-3 font-mono text-xs">{flag.id || "\u2014"}</td>
-                      <td className="py-2 pr-3 font-mono text-xs">{flag.enumerator_id || "\u2014"}</td>
-                      <td className="py-2 pr-3 font-mono text-xs">{flag.survey_date || "\u2014"}</td>
-                      <td className="py-2 pr-3 font-mono text-xs">{flag.column_name || "\u2014"}</td>
-                      <td className="py-2 pr-3 text-xs max-w-[120px] truncate" title={flag.observed_value}>
+                      <td className="py-2 pr-3 font-mono text-xs whitespace-nowrap">{flag.id || "\u2014"}</td>
+                      <td className="py-2 pr-3 font-mono text-xs whitespace-nowrap">{flag.enumerator_id || "\u2014"}</td>
+                      <td className="py-2 pr-3 font-mono text-xs whitespace-nowrap">{flag.survey_date || "\u2014"}</td>
+                      <td className="py-2 pr-3 font-mono text-xs whitespace-nowrap">{flag.column_name || "\u2014"}</td>
+                      <td className="py-2 pr-3 text-xs whitespace-nowrap max-w-[120px] truncate" title={flag.observed_value}>
                         {flag.observed_value || "\u2014"}
                       </td>
                       <td className="py-2 text-xs text-gray-700">{flag.message}</td>

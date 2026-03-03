@@ -891,9 +891,7 @@ export function App() {
             checkResult={checkResult}
             performanceResult={performanceResult}
             onStartOver={handleStartOver}
-            onExportReport={handleExportReport}
             onExportFlags={handleExportFlags}
-            exporting={exporting}
             onResolveFlags={handleResolveFlags}
             onUnresolveFlags={handleUnresolveFlags}
             onImportReviewedCsv={handleImportReviewedCsv}
