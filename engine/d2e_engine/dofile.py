@@ -192,6 +192,9 @@ def _emit_chk002(config: dict[str, Any], columns: list[str]) -> str:
     if not analysis_cols:
         return "* CHK-002: No columns to analyse (all excluded)\n\n"
 
+    safe_cols = [_sanitize_stata_name(c) for c in analysis_cols]
+    col_list = " ".join(safe_cols)
+
     lines = [
         '/*───────────────────────────────────────────────────',
         '  CHK-002: Missingness by Variable | Severity: Warning/Critical',
@@ -204,23 +207,22 @@ def _emit_chk002(config: dict[str, Any], columns: list[str]) -> str:
         'di as text %30s "Variable" _col(35) %10s "Missing" _col(48) %10s "Rate" _col(60) "Flag"',
         'di as text "{hline 60}"',
         '',
+        f'local _chk002_cols "{col_list}"',
+        "foreach var of local _chk002_cols {",
+        "    quietly count if missing(`var')",
+        "    local _miss = r(N)",
+        "    local _rate = r(N) / _N",
+        "    if `_rate' > `miss_crit_threshold' {",
+        '        di as text %30s "`var\'" _col(35) as result %10.0f `_miss\' _col(48) as result %10.3f `_rate\' _col(60) as error "CRITICAL"',
+        "    }",
+        "    else if `_rate' > `miss_warn_threshold' {",
+        '        di as text %30s "`var\'" _col(35) as result %10.0f `_miss\' _col(48) as result %10.3f `_rate\' _col(60) as error "WARNING"',
+        "    }",
+        "}",
+        '',
+        'di as text "{hline 60}"',
+        '',
     ]
-
-    for col in analysis_cols:
-        safe = _sanitize_stata_name(col)
-        lines.append(f'quietly count if missing({safe})')
-        lines.append(f'local _miss_{safe} = r(N)')
-        lines.append(f'local _rate_{safe} = r(N) / _N')
-        lines.append(f'if `_rate_{safe}\' > `miss_crit_threshold\' {{')
-        lines.append(f'    di as text %30s "{safe}" _col(35) as result %10.0f `_miss_{safe}\' _col(48) as result %10.3f `_rate_{safe}\' _col(60) as error "CRITICAL"')
-        lines.append(f'}}')
-        lines.append(f'else if `_rate_{safe}\' > `miss_warn_threshold\' {{')
-        lines.append(f'    di as text %30s "{safe}" _col(35) as result %10.0f `_miss_{safe}\' _col(48) as result %10.3f `_rate_{safe}\' _col(60) as error "WARNING"')
-        lines.append(f'}}')
-        lines.append('')
-
-    lines.append('di as text "{hline 60}"')
-    lines.append('')
 
     return "\n".join(lines) + "\n"
 
@@ -244,6 +246,8 @@ def _emit_chk004(mapping: dict[str, str], config: dict[str, Any], columns: list[
     if not analysis_cols:
         return "* CHK-004: No analysis columns available\n\n"
 
+    col_list = " ".join(analysis_cols)
+
     lines = [
         '/*───────────────────────────────────────────────────',
         '  CHK-004: Missingness by Enumerator | Severity: Warning',
@@ -256,29 +260,28 @@ def _emit_chk004(mapping: dict[str, str], config: dict[str, Any], columns: list[
         'di as text _newline "CHK-004: Missingness by Enumerator"',
         '',
         'tempvar _chk004_flag',
-        'gen `_chk004_flag\' = 0',
+        "gen `_chk004_flag' = 0",
+        '',
+        f'local _chk004_cols "{col_list}"',
+        "foreach var of local _chk004_cols {",
+        "    quietly count if missing(`var')",
+        "    local _base_miss = r(N) / _N",
+        "    if `_base_miss' >= 0.01 {",
+        "        bysort `enumerator_col': egen _d2e_emiss = mean(missing(`var'))",
+        "        bysort `enumerator_col': gen _d2e_ecount = _N",
+        "        replace `_chk004_flag' = 1 if _d2e_emiss > `_base_miss' * `enum_deviation' & _d2e_ecount >= `enum_min_rows'",
+        "        drop _d2e_emiss _d2e_ecount",
+        "    }",
+        "}",
+        '',
+        "gen d2e_flag_chk004 = `_chk004_flag'",
+        'label var d2e_flag_chk004 "CHK-004: Missingness by Enumerator"',
+        "drop `_chk004_flag'",
+        '',
+        'quietly count if d2e_flag_chk004 == 1',
+        'di as text "CHK-004: " as result r(N) as text " flags"',
         '',
     ]
-
-    for col in analysis_cols:
-        lines.append(f'* — Check column: {col}')
-        lines.append(f'quietly count if missing({col})')
-        lines.append(f'local _base_miss_{col} = r(N) / _N')
-        lines.append(f'if `_base_miss_{col}\' >= 0.01 {{')
-        lines.append(f'    bysort `enumerator_col\': egen _d2e_emiss_{col} = mean(missing({col}))')
-        lines.append(f'    bysort `enumerator_col\': gen _d2e_ecount_{col} = _N')
-        lines.append(f'    replace `_chk004_flag\' = 1 if _d2e_emiss_{col} > `_base_miss_{col}\' * `enum_deviation\' & _d2e_ecount_{col} >= `enum_min_rows\'')
-        lines.append(f'    drop _d2e_emiss_{col} _d2e_ecount_{col}')
-        lines.append(f'}}')
-        lines.append('')
-
-    lines.append('gen d2e_flag_chk004 = `_chk004_flag\'')
-    lines.append('label var d2e_flag_chk004 "CHK-004: Missingness by Enumerator"')
-    lines.append('drop `_chk004_flag\'')
-    lines.append('')
-    lines.append('quietly count if d2e_flag_chk004 == 1')
-    lines.append('di as text "CHK-004: " as result r(N) as text " flags"')
-    lines.append('')
 
     return "\n".join(lines) + "\n"
 
@@ -333,6 +336,69 @@ def _emit_chk005(config: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _emit_chk006(config: dict[str, Any]) -> str:
+    rules: list[dict[str, Any]] = config.get("skip_rules", [])
+    if not rules:
+        return "* CHK-006: No skip rules configured — skipped\n\n"
+
+    excluded = set(config.get("excluded_columns", []))
+
+    lines = [
+        '/*───────────────────────────────────────────────────',
+        '  CHK-006: Skip Logic | Severity: Critical',
+        '  Rule: If conditions are met, dependent column must be missing',
+        '───────────────────────────────────────────────────*/',
+        '',
+    ]
+
+    for ri, rule in enumerate(rules):
+        groups: list[dict[str, Any]] = rule.get("condition_groups", [])
+        group_logic: str = rule.get("group_logic", "AND").upper()
+        dependent: str = rule.get("dependent_column", "")
+
+        if not dependent or not groups or dependent in excluded:
+            continue
+
+        safe_dep = _sanitize_stata_name(dependent)
+
+        # Build group expressions (group.logic within group, group_logic between groups)
+        group_exprs: list[str] = []
+        for group in groups:
+            conditions = group.get("conditions", [])
+            inner_logic = group.get("logic", "AND").upper()
+            cond_exprs: list[str] = []
+            for cond in conditions:
+                col = cond.get("column", "")
+                vals = cond.get("values", [])
+                if not col or not vals:
+                    continue
+                safe_col = _sanitize_stata_name(col)
+                str_values = [str(v) for v in vals]
+                all_numeric = all(_is_numeric_str(v) for v in str_values)
+                inlist_expr = _stata_inlist(safe_col, str_values, is_string=not all_numeric)
+                cond_exprs.append(f"({inlist_expr})")
+            if cond_exprs:
+                inner_joiner = " | " if inner_logic == "OR" else " & "
+                group_exprs.append(f"({inner_joiner.join(cond_exprs)})")
+
+        if not group_exprs:
+            continue
+
+        # group_logic between groups
+        group_joiner = " | " if group_logic == "OR" else " & "
+        combined = group_joiner.join(group_exprs)
+
+        flagvar = _truncvar(f"d2e_flag_chk006_r{ri}_", safe_dep)
+        lines.append(f'* Skip rule #{ri + 1}: if {combined} → {safe_dep} must be missing')
+        lines.append(f'gen {flagvar} = ({combined}) & !missing({safe_dep})')
+        lines.append(f'label var {flagvar} "CHK-006: Skip logic for {safe_dep}"')
+        lines.append(f'quietly count if {flagvar} == 1')
+        lines.append(f'di as text "CHK-006 ({safe_dep}, rule {ri + 1}): " as result r(N) as text " flags"')
+        lines.append('')
+
+    return "\n".join(lines) + "\n"
+
+
 def _emit_chk008(config: dict[str, Any], columns: list[str]) -> str:
     excluded = set(config.get("excluded_columns", []))
     # We can't know which columns are numeric from names alone, so we emit
@@ -342,31 +408,33 @@ def _emit_chk008(config: dict[str, Any], columns: list[str]) -> str:
     if not analysis_cols:
         return "* CHK-008: No columns to analyse\n\n"
 
+    safe_cols = [_sanitize_stata_name(c) for c in analysis_cols]
+    col_list = " ".join(safe_cols)
+
     lines = [
         '/*───────────────────────────────────────────────────',
         '  CHK-008: Outlier Z-score | Severity: Warning',
         '  Rule: |z-score| > threshold for numeric columns',
         '───────────────────────────────────────────────────*/',
         '',
+        f'local _chk008_cols "{col_list}"',
+        'foreach var of local _chk008_cols {',
+        "    capture confirm numeric variable `var'",
+        '    if _rc == 0 {',
+        "        quietly summarize `var'",
+        '        if r(sd) > 0 & r(sd) < . {',
+        '            local _flagvar = substr("d2e_flag_chk008_" + "`var\'", 1, 32)',
+        "            gen _d2e_z = (`var' - r(mean)) / r(sd)",
+        "            gen `_flagvar' = (abs(_d2e_z) > `zscore_threshold') if !missing(`var')",
+        '            label var `_flagvar\' "CHK-008: Outlier z-score for `var\'"',
+        "            quietly count if `_flagvar' == 1",
+        '            di as text "CHK-008 (`var\'): " as result r(N) as text " flags"',
+        '            drop _d2e_z',
+        '        }',
+        '    }',
+        '}',
+        '',
     ]
-
-    for col in analysis_cols:
-        safe = _sanitize_stata_name(col)
-        flagvar = _truncvar("d2e_flag_chk008_", safe)
-        zvar = _truncvar("_d2e_z_", safe)
-        lines.append(f'capture confirm numeric variable {safe}')
-        lines.append(f'if _rc == 0 {{')
-        lines.append(f'    quietly summarize {safe}')
-        lines.append(f'    if r(sd) > 0 & r(sd) < . {{')
-        lines.append(f'        gen {zvar} = ({safe} - r(mean)) / r(sd)')
-        lines.append(f'        gen {flagvar} = (abs({zvar}) > `zscore_threshold\') if !missing({safe})')
-        lines.append(f'        label var {flagvar} "CHK-008: Outlier z-score for {safe}"')
-        lines.append(f'        quietly count if {flagvar} == 1')
-        lines.append(f'        di as text "CHK-008 ({safe}): " as result r(N) as text " flags"')
-        lines.append(f'        drop {zvar}')
-        lines.append(f'    }}')
-        lines.append(f'}}')
-        lines.append('')
 
     return "\n".join(lines) + "\n"
 
@@ -583,7 +651,7 @@ di as text "{hline 60}"
 # ---------------------------------------------------------------------------
 
 _CHECK_ORDER = [
-    "CHK-001", "CHK-002", "CHK-004", "CHK-005",
+    "CHK-001", "CHK-002", "CHK-004", "CHK-005", "CHK-006",
     "CHK-008", "CHK-010", "CHK-012", "CHK-009",
 ]
 
@@ -639,6 +707,8 @@ def generate_dofile(
         sections.append(_emit_chk004(mapping, config, columns))
     if "CHK-005" in active_checks:
         sections.append(_emit_chk005(config))
+    if "CHK-006" in active_checks:
+        sections.append(_emit_chk006(config))
     if "CHK-008" in active_checks:
         sections.append(_emit_chk008(config, columns))
     if "CHK-010" in active_checks:

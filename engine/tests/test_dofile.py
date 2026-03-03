@@ -196,20 +196,25 @@ class TestEmitChk001:
 # ---------------------------------------------------------------------------
 
 class TestEmitChk002:
-    def test_loops_over_columns(self):
+    def test_uses_foreach_loop(self):
         config = dict(DEFAULT_CONFIG)
         columns = ["income", "age", "gender"]
         result = _emit_chk002(config, columns)
-        assert "missing(income)" in result
-        assert "missing(age)" in result
-        assert "missing(gender)" in result
+        assert "foreach var of local _chk002_cols" in result
+        assert "missing(`var')" in result
+
+    def test_column_list_in_local(self):
+        config = dict(DEFAULT_CONFIG)
+        columns = ["income", "age", "gender"]
+        result = _emit_chk002(config, columns)
+        assert 'local _chk002_cols "income age gender"' in result
 
     def test_excludes_columns(self):
         config = dict(DEFAULT_CONFIG, excluded_columns=["age"])
         columns = ["income", "age", "gender"]
         result = _emit_chk002(config, columns)
-        assert "missing(income)" in result
-        assert "missing(age)" not in result
+        assert "income" in result
+        assert "age" not in result
 
     def test_empty_columns(self):
         config = dict(DEFAULT_CONFIG)
@@ -228,10 +233,15 @@ class TestEmitChk002:
 # ---------------------------------------------------------------------------
 
 class TestEmitChk004:
-    def test_bysort_enumerator(self, base_mapping, base_config):
+    def test_uses_foreach_loop(self, base_mapping, base_config):
         result = _emit_chk004(base_mapping, base_config, ["income", "age"])
+        assert "foreach var of local _chk004_cols" in result
         assert "bysort" in result
         assert "enumerator_col" in result
+
+    def test_column_list_in_local(self, base_mapping, base_config):
+        result = _emit_chk004(base_mapping, base_config, ["income", "age"])
+        assert 'local _chk004_cols "income age"' in result
 
     def test_skips_without_enumerator(self, base_config):
         result = _emit_chk004({}, base_config, ["income"])
@@ -240,10 +250,10 @@ class TestEmitChk004:
     def test_excludes_mapping_columns(self, base_mapping, base_config):
         columns = ["resp_id", "enum_id", "date", "income"]
         result = _emit_chk004(base_mapping, base_config, columns)
-        # Only 'income' should appear as an analysis column
-        assert "income" in result
-        # Mapping columns should NOT appear as analysis targets
-        assert "_base_miss_resp_id" not in result
+        # Only 'income' should appear in the column list
+        assert 'local _chk004_cols "income"' in result
+        # Mapping columns should NOT appear in the column list
+        assert "resp_id" not in result.split("_chk004_cols")[1].split('"')[1]
 
     def test_flag_variable_created(self, base_mapping, base_config):
         result = _emit_chk004(base_mapping, base_config, ["income"])
@@ -298,12 +308,21 @@ class TestEmitChk005:
 # ---------------------------------------------------------------------------
 
 class TestEmitChk008:
-    def test_numeric_check(self):
+    def test_uses_foreach_loop(self):
         config = dict(DEFAULT_CONFIG)
         result = _emit_chk008(config, ["income", "age"])
-        assert "capture confirm numeric variable income" in result
-        assert "d2e_flag_chk008_income" in result
-        assert "d2e_flag_chk008_age" in result
+        assert "foreach var of local _chk008_cols" in result
+        assert "capture confirm numeric variable `var'" in result
+
+    def test_column_list_in_local(self):
+        config = dict(DEFAULT_CONFIG)
+        result = _emit_chk008(config, ["income", "age"])
+        assert 'local _chk008_cols "income age"' in result
+
+    def test_dynamic_flag_variable(self):
+        config = dict(DEFAULT_CONFIG)
+        result = _emit_chk008(config, ["income"])
+        assert 'substr("d2e_flag_chk008_"' in result
 
     def test_zscore_threshold_reference(self):
         config = dict(DEFAULT_CONFIG)
