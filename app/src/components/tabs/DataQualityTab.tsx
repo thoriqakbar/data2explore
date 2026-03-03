@@ -87,10 +87,10 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
 
   const exportFlagsCsv = () => {
     if (!onExportFlags) return;
-    const headers: (keyof FlagRow)[] = [
+    const headers = [
       "run_id", "check_id", "check_name", "severity", "status",
       "id", "enumerator_id", "column_name", "observed_value",
-      "rule_reference", "message", "created_at",
+      "rule_reference", "message", "created_at", "reason", "note",
     ];
     const sorted = [...filteredFlags].sort((a, b) =>
       a.enumerator_id.localeCompare(b.enumerator_id) ||
@@ -99,7 +99,12 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
     );
     onExportFlags([
       headers.join(","),
-      ...sorted.map((flag) => headers.map((header) => csvEscape(flag[header])).join(",")),
+      ...sorted.map((flag) => {
+        const key = `${flag.id}|${flag.check_id}|${flag.column_name}`;
+        const decision = decisions?.[key];
+        const row: Record<string, unknown> = { ...flag, reason: decision?.reason ?? "", note: decision?.note ?? "" };
+        return headers.map((h) => csvEscape(row[h])).join(",");
+      }),
     ].join("\n"));
   };
 
