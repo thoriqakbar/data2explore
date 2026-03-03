@@ -2,9 +2,7 @@
 
 Produces an N-sheet workbook:
   1. Summary   – run metadata, severity counts, flags-by-check
-  2. Flags     – all flags with auto-filter and conditional formatting
-  3. Action Sheet – all flags date-sorted, with editable Status/Note columns
-  4…N-1. Per-enumerator sheets – one per enumerator with flags
+  2…N-1. Per-enumerator sheets – editable review surface with Status/Note
   N. Data Overview – column details and summary statistics
 """
 
@@ -41,9 +39,7 @@ def generate_report(data: dict, out_path: Path) -> Path:
     # Sheet 1 is created automatically — rename it
     wb.active.title = "Summary"  # type: ignore[union-attr]
     _write_summary_sheet(wb, data)
-    _write_flags_sheet(wb, active_flags)
-    _write_action_sheet(wb, active_flags, suppressed_flags, decisions)
-    _write_enumerator_sheets(wb, active_flags)
+    _write_enumerator_sheets(wb, active_flags, suppressed_flags, decisions)
     _write_data_overview_sheet(wb, data)
     if decisions:
         _write_decision_log_sheet(wb, decisions)
@@ -77,12 +73,12 @@ def _write_summary_sheet(wb: Workbook, data: dict) -> None:
     _header_row(ws, row, ["Severity", "Count"])
     row += 1
     by_sev = summary.get("by_severity", {})
-    for sev in ("critical", "warning"):
+    for sev in ("Critical", "Warning"):
         count = by_sev.get(sev, 0)
-        label = sev.title()
+        label = sev
         ws.cell(row=row, column=1, value=label)
         ws.cell(row=row, column=2, value=count)
-        fill = _FILL_CRITICAL if sev == "critical" else _FILL_WARNING
+        fill = _FILL_CRITICAL if sev == "Critical" else _FILL_WARNING
         ws.cell(row=row, column=1).fill = fill
         ws.cell(row=row, column=2).fill = fill
         row += 1
@@ -260,18 +256,35 @@ def _populate_action_sheet(
 
 # ── Per-enumerator sheets ──────────────────────────────────────────
 
-def _write_enumerator_sheets(wb: Workbook, flags: list[dict]) -> None:
-    """Create one sheet per enumerator that has flags."""
+def _write_enumerator_sheets(
+    wb: Workbook,
+    flags: list[dict],
+    suppressed_flags: list[dict] | None = None,
+    decisions: dict | None = None,
+) -> None:
+    """Create one sheet per enumerator — the primary editable review surface."""
+    # Group active flags by enumerator
     by_enum: dict[str, list[dict]] = {}
     for f in flags:
         eid = f.get("enumerator_id", "") or "(unknown)"
         by_enum.setdefault(eid, []).append(f)
 
-    for eid in sorted(by_enum):
-        # Excel sheet names max 31 chars, no special chars
+    # Group suppressed flags by enumerator
+    sup_by_enum: dict[str, list[dict]] = {}
+    for f in (suppressed_flags or []):
+        eid = f.get("enumerator_id", "") or "(unknown)"
+        sup_by_enum.setdefault(eid, []).append(f)
+
+    # Union of all enumerator IDs (some may only have suppressed flags)
+    all_eids = sorted(set(by_enum) | set(sup_by_enum))
+
+    for eid in all_eids:
+        # Excel sheet names max 31 chars
         sheet_name = str(eid)[:31]
         ws = wb.create_sheet(sheet_name)
-        _populate_action_sheet(ws, by_enum[eid])
+        _populate_action_sheet(
+            ws, by_enum.get(eid, []), sup_by_enum.get(eid), decisions,
+        )
 
 
 # ── Data Overview ──────────────────────────────────────────────────

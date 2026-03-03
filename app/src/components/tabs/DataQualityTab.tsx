@@ -8,6 +8,8 @@ type SeverityFilter = "all" | "critical" | "warning";
 interface Props {
   checkResult: CheckOutput | null | undefined;
   onExportFlags?: (content: string) => void;
+  onExportReport?: () => void;
+  exporting?: boolean;
   initialEnumerator?: string | null;
   onResolveFlags?: (flags: FlagRow[], note: string) => void;
   onUnresolveFlags?: (flags: FlagRow[]) => void;
@@ -31,7 +33,7 @@ function checkLabel(checkId: string): string {
   return categoryForCheckId(checkId);
 }
 
-export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, onResolveFlags, onUnresolveFlags, onImportReviewedCsv, onExportDofile, suppressedFlags, decisions }: Props) {
+export function DataQualityTab({ checkResult, onExportFlags, onExportReport, exporting, initialEnumerator, onResolveFlags, onUnresolveFlags, onImportReviewedCsv, onExportDofile, suppressedFlags, decisions }: Props) {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [enumeratorFilter, setEnumeratorFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState({ from: "", to: "" });
@@ -342,7 +344,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                     onClick={onImportReviewedCsv}
                     className="px-3 py-1.5 border border-indigo-300 text-indigo-700 rounded-md hover:bg-indigo-50 font-medium transition-colors"
                   >
-                    Import Reviewed CSV
+                    Import Decisions
                   </button>
                 )}
                 {onExportDofile && (
@@ -356,9 +358,18 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                 {onExportFlags && (
                   <button
                     onClick={exportFlagsCsv}
-                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 font-medium transition-colors"
+                    className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 font-medium transition-colors"
                   >
-                    Export Report
+                    Export Flags CSV
+                  </button>
+                )}
+                {onExportReport && (
+                  <button
+                    onClick={onExportReport}
+                    disabled={exporting}
+                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                  >
+                    {exporting ? "Exporting\u2026" : "Export Report"}
                   </button>
                 )}
               </div>

@@ -33,7 +33,7 @@ def _make_flag(**overrides) -> FlagRow:
 class TestFlagKey:
     def test_identity(self):
         f = _make_flag(id="R1", check_id="CHK-001", column_name="age")
-        assert _flag_key(f) == ("R1", "CHK-001", "age", "", "")
+        assert _flag_key(f) == ("R1", "CHK-001", "age", "", "", "")
 
     def test_different_flags_different_keys(self):
         f1 = _make_flag(id="R1", check_id="CHK-001", column_name="age")

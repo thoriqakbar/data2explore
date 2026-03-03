@@ -19,8 +19,9 @@
 
 Everything runs locally. No raw data leaves your machine.
 
-<!-- TODO: Replace with actual screenshot once you have one -->
-<!-- <p align="center"><img src="docs/screenshot.png" alt="data2explore screenshot" width="700" /></p> -->
+<p align="center">
+  <img src="docs/screenshot-1-landingpage.png" alt="Import step" width="700" />
+</p>
 
 ## Why
 
@@ -58,9 +59,13 @@ Import  -->  Map Columns  -->  Configure Rules  -->  Run  -->  Results
 
 ### Exports and reporting
 
-- **Excel workbook** with per-enumerator sheets, summary, flags, and editable action columns
+- **Excel workbook** with per-enumerator review sheets, summary, and editable Status/Note columns
 - **CSV export** for external processing
 - **Stata .do file** that replicates all checks in Stata 14+ syntax for independent verification
+
+<p align="center">
+  <img src="docs/screenshot-5-export.png" alt="Excel report export" width="700" />
+</p>
 
 ### Delta tracking
 
@@ -106,6 +111,14 @@ Run the `.exe` installer. Windows SmartScreen may show an "unknown publisher" wa
 
 Your configuration is auto-saved next to your data file, so daily re-runs only need one click.
 
+<p align="center">
+  <img src="docs/screenshot-2-dataquality.png" alt="Data Quality tab" width="500" />
+  <img src="docs/screenshot-3-surveyperformance.png" alt="Survey Performance tab" width="500" />
+</p>
+<p align="center">
+  <img src="docs/screenshot-4-sumstat.png" alt="Summary Statistics tab" width="500" />
+</p>
+
 ---
 
 ## Building from source
@@ -144,7 +157,7 @@ pnpm package
 ### Run tests
 
 ```bash
-# Python engine tests (231 tests, 92-100% coverage)
+# Python engine tests (237 tests, 92-100% coverage)
 cd engine && uv run pytest --cov
 
 # TypeScript type checking
@@ -166,7 +179,7 @@ The app is a two-process Electron application. The React renderer communicates w
 | Desktop shell | Electron 34 |
 | Engine | Python 3.11, pandas, openpyxl, pyreadstat |
 | Packaging | PyInstaller (engine freeze), electron-builder (installer) |
-| Testing | pytest (231 tests), TypeScript strict mode |
+| Testing | pytest (237 tests), TypeScript strict mode |
 
 ## Project structure
 
@@ -179,7 +192,7 @@ data2explore/
   engine/                 # Python HFC engine
     d2e_engine/           #   Core modules (checks, profiling, export)
       checks/             #   Individual check implementations
-    tests/                #   pytest test suite (231 tests)
+    tests/                #   pytest test suite (237 tests)
   shared/                 # Shared TypeScript types and JSON schemas
   samples/                # Sample data for testing and demos
   docs/                   # Product specs and documentation
@@ -199,4 +212,4 @@ For code contributions:
 
 ## License
 
-[MIT](LICENSE) - Thoriq Akbar
+[MIT](LICENSE) - Mochamad Thoriq Akbar

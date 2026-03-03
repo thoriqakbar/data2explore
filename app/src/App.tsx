@@ -872,7 +872,7 @@ export function App() {
 
       const { decisions: imported, importedCount, skippedCount } = parseReviewedCsv(csvText);
       if (importedCount === 0) {
-        setNotice(`No resolved flags found in CSV (${skippedCount} rows had no recognized status). Expected a "status" column with values like Resolved, Accepted, Dismissed, etc.`);
+        setNotice(`No resolved flags found (${skippedCount} rows had no recognized status). Expected a "status" column with values like Resolved, Accepted, Dismissed, etc.`);
         return;
       }
 
@@ -880,11 +880,32 @@ export function App() {
       const merged = { ...decisions, ...imported };
       setDecisions(merged);
       await saveDecisionsToDisk(merged);
-      setNotice(`Imported ${importedCount} decision${importedCount === 1 ? "" : "s"} from CSV.${skippedCount > 0 ? ` ${skippedCount} rows skipped (status not resolved).` : ""} Re-run checks to apply.`);
+
+      // Move matching active flags → suppressed (same logic as handleResolveFlags)
+      if (checkResult) {
+        const importedKeys = new Set(Object.keys(imported));
+        const newSuppressed = checkResult.flags.filter(f => importedKeys.has(flagKeyStr(f)));
+        if (newSuppressed.length > 0) {
+          const remainingFlags = checkResult.flags.filter(f => !importedKeys.has(flagKeyStr(f)));
+          setSuppressedFlags(prev => [...prev, ...newSuppressed]);
+          setCheckResult({
+            ...checkResult,
+            flags: remainingFlags,
+            summary: {
+              ...checkResult.summary,
+              total_flags: remainingFlags.length,
+              suppressed_count: (checkResult.summary.suppressed_count ?? 0) + newSuppressed.length,
+              total_before_suppression: checkResult.summary.total_before_suppression ?? checkResult.summary.total_flags,
+            },
+          });
+        }
+      }
+
+      setNotice(`Imported ${importedCount} decision${importedCount === 1 ? "" : "s"}.${skippedCount > 0 ? ` ${skippedCount} rows skipped (status not resolved).` : ""}`);
     } catch (err) {
-      setError(`CSV import failed: ${err instanceof Error ? err.message : String(err)}`);
+      setError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [decisions, saveDecisionsToDisk]);
+  }, [decisions, checkResult, suppressedFlags, saveDecisionsToDisk]);
 
   const handleStartOver = useCallback(() => {
     setStep("import");
@@ -1002,6 +1023,8 @@ export function App() {
             performanceResult={performanceResult}
             onStartOver={handleStartOver}
             onExportFlags={handleExportFlags}
+            onExportReport={handleExportReport}
+            exporting={exporting}
             onResolveFlags={handleResolveFlags}
             onUnresolveFlags={handleUnresolveFlags}
             onImportReviewedCsv={handleImportReviewedCsv}
@@ -1011,7 +1034,7 @@ export function App() {
           />
           {exportMessage && (
             <div className={`mt-4 p-3 rounded-lg text-sm ${
-              exportMessage.startsWith("Report saved") || exportMessage.startsWith("Flags exported")
+              exportMessage.startsWith("Report saved") || exportMessage.startsWith("Flags exported") || exportMessage.startsWith("Stata .do")
                 ? "bg-green-50 border border-green-200 text-green-800"
                 : "bg-red-50 border border-red-200 text-red-700"
             }`}>

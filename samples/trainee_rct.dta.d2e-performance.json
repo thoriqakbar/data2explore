@@ -1,0 +1,12 @@
+{
+  "ok": false,
+  "daily_completions": [],
+  "enumerator_stats": [],
+  "duration_stats": null,
+  "daily_by_enumerator": null,
+  "totals": null,
+  "warnings": [],
+  "errors": [
+    "survey_date mapping is required for performance metrics."
+  ]
+}

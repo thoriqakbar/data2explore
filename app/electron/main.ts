@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { readFile, writeFile, access, copyFile, mkdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import * as XLSX from "xlsx";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -256,12 +257,43 @@ ipcMain.handle("decisions:import-csv", async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return null;
   const result = await dialog.showOpenDialog(win, {
-    title: "Import Reviewed CSV",
-    filters: [{ name: "CSV", extensions: ["csv"] }],
+    title: "Import Reviewed Decisions",
+    filters: [
+      { name: "Excel or CSV", extensions: ["xlsx", "csv"] },
+    ],
     properties: ["openFile"],
   });
   if (result.canceled || result.filePaths.length === 0) return null;
-  const content = await readFile(result.filePaths[0], "utf-8");
+
+  const filePath = result.filePaths[0];
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (ext === ".xlsx") {
+    // Read all per-enumerator sheets (skip metadata sheets)
+    const buf = await readFile(filePath);
+    const wb = XLSX.read(buf, { type: "buffer" });
+    const SKIP_SHEETS = new Set(["Summary", "Flags", "Data Overview", "Decision Log"]);
+    const flagSheets = wb.SheetNames.filter((n) => !SKIP_SHEETS.has(n));
+
+    if (flagSheets.length === 0) return null;
+
+    // Concatenate: header from first sheet, data rows from all sheets
+    let csv = "";
+    for (let i = 0; i < flagSheets.length; i++) {
+      const sheetCsv = XLSX.utils.sheet_to_csv(wb.Sheets[flagSheets[i]]);
+      if (i === 0) {
+        csv = sheetCsv;
+      } else {
+        // Skip header line, append data rows only
+        const lines = sheetCsv.split("\n");
+        csv += "\n" + lines.slice(1).join("\n");
+      }
+    }
+    return csv;
+  }
+
+  // Default: read as plain text CSV
+  const content = await readFile(filePath, "utf-8");
   return content;
 });
 

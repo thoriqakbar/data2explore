@@ -39,8 +39,8 @@ def load_prior_flags(path: str | Path | None) -> list[FlagRow]:
         return []
 
 
-def _flag_key(flag: FlagRow) -> tuple[str, str, str, str, str]:
-    return (flag.id, flag.check_id, flag.column_name, flag.enumerator_id, flag.survey_date)
+def _flag_key(flag: FlagRow) -> tuple[str, str, str, str, str, str]:
+    return (flag.id, flag.check_id, flag.column_name, flag.enumerator_id, flag.survey_date, flag.rule_reference)
 
 
 def build_summary_json(

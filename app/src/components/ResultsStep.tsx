@@ -21,6 +21,8 @@ interface Props {
   performanceResult?: PerformanceOutput | null;
   onStartOver: () => void;
   onExportFlags?: (content: string) => void;
+  onExportReport?: () => void;
+  exporting?: boolean;
   onResolveFlags?: (flags: FlagRow[], note: string) => void;
   onUnresolveFlags?: (flags: FlagRow[]) => void;
   onImportReviewedCsv?: () => void;
@@ -36,6 +38,8 @@ export function ResultsStep({
   performanceResult,
   onStartOver,
   onExportFlags,
+  onExportReport,
+  exporting,
   onResolveFlags,
   onUnresolveFlags,
   onImportReviewedCsv,
@@ -91,6 +95,8 @@ export function ResultsStep({
           <DataQualityTab
             checkResult={checkResult}
             onExportFlags={onExportFlags}
+            onExportReport={onExportReport}
+            exporting={exporting}
             initialEnumerator={linkedEnumerator}
             onResolveFlags={onResolveFlags}
             onUnresolveFlags={onUnresolveFlags}

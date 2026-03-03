@@ -20,9 +20,24 @@ interface ParseResult {
 }
 
 /**
- * Parse a reviewed CSV (exported from Google Sheets) and extract decisions.
+ * Map display headers (from Excel export) to internal field names.
+ * Both forms are accepted; lookup is case-insensitive.
+ */
+const HEADER_ALIASES: Record<string, string> = {
+  "check id": "check_id",
+  "check name": "check_name",
+  "column": "column_name",
+  "enumerator": "enumerator_id",
+  "survey date": "survey_date",
+  "value": "observed_value",
+  "run date": "created_at",
+};
+
+/**
+ * Parse a reviewed CSV (exported from Excel or Google Sheets) and extract decisions.
  *
- * Expects columns: id, check_id, column_name, status (and optionally: note).
+ * Accepts both internal field names (check_id, column_name) and display headers
+ * (Check ID, Column) as used in the Excel report.
  * Rows where status matches a "resolved" synonym become dismissed decisions.
  */
 export function parseReviewedCsv(csvText: string): ParseResult {
@@ -31,9 +46,12 @@ export function parseReviewedCsv(csvText: string): ParseResult {
     return { decisions: {}, importedCount: 0, skippedCount: 0 };
   }
 
-  // Parse header — find column indices
+  // Parse header — find column indices, normalising display names to internal names
   const headerLine = lines[0];
-  const headers = parseCsvRow(headerLine).map((h) => h.trim().toLowerCase());
+  const headers = parseCsvRow(headerLine).map((h) => {
+    const lower = h.trim().toLowerCase();
+    return HEADER_ALIASES[lower] ?? lower;
+  });
 
   const idIdx = headers.indexOf("id");
   const checkIdIdx = headers.indexOf("check_id");

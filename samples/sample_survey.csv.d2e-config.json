@@ -1,0 +1,35 @@
+{
+  "version": "1",
+  "mapping": {
+    "id": "id",
+    "enumerator_id": "enumerator_id",
+    "survey_date": "survey_date"
+  },
+  "duration": {
+    "mode": "column",
+    "duration_column": "duration_minutes",
+    "duration_unit": "minutes"
+  },
+  "range_rules": [],
+  "allowed_values_rules": [],
+  "skip_rules": [
+    {
+      "condition_groups": [
+        {
+          "conditions": [
+            {
+              "column": "currently_working",
+              "values": [
+                "0"
+              ]
+            }
+          ],
+          "logic": "AND"
+        }
+      ],
+      "group_logic": "AND",
+      "dependent_column": "monthly_income"
+    }
+  ],
+  "excluded_columns": []
+}
