@@ -15,7 +15,7 @@
 
 ---
 
-**data2explore** is a desktop app for running **high-frequency checks (HFC)** on survey data. It helps field supervisors and research teams detect data quality issues — duplicates, outliers, missing data patterns, enumerator anomalies — early in fieldwork, when problems can still be fixed.
+**data2explore** is a desktop app for running **high-frequency checks (HFC)** on survey data. It helps field supervisors and research teams detect data quality issues, such as duplicates, outliers, missing data patterns, enumerator anomalies, early in fieldwork, before everything gets messier.
 
 Everything runs locally. No raw data leaves your machine.
 
@@ -23,17 +23,17 @@ Everything runs locally. No raw data leaves your machine.
   <img src="docs/screenshot-1-landingpage.png" alt="Import step" width="700" />
 </p>
 
-## Why
+## 🎯 Why
 
-Survey teams collect thousands of records during fieldwork. Without daily monitoring, issues like duplicate IDs, systematic missing data, or fabricated interviews go unnoticed until analysis — weeks or months later. By then, it's too late to re-interview or correct the data.
+Survey fieldwork generates thousands of records across dozens of enumerators, and the more complex the instrument, the more room for error. Without daily monitoring, problems like duplicate IDs, systematic missing data, or fabricated interviews go unnoticed until the analysis phase — weeks or months later, when re-interviews are no longer possible. Quality data is the foundation of credible research; catching issues early protects both.
 
-High-frequency checks solve this by flagging problems as data comes in. But setting up HFC pipelines typically requires Stata licenses, custom do-files, and technical expertise that many field teams don't have.
+High-frequency checks (HFCs) solve this by flagging anomalies daily so supervisors can verify and correct them in the field. But setting up an HFC pipeline is costly: it typically requires a Stata license, custom do-files, and programming expertise. Tools like SurveyCTO's built-in checks and IPA's `ipacheck` help, but still demand technical setup or lack the flexibility that complex surveys need — so many teams end up writing bespoke scripts anyway.
 
-data2explore gives you a complete HFC workflow in a single app: import your data, map your columns, configure checks, and get results — no coding, no setup, no Stata license required.
+data2explore removes these barriers. Import your data, map your variables, choose your checks, and get results — no coding, no Stata license. It's designed so that anyone on the team, not just the RA who knows Stata, can run quality checks and act on the findings. Less time maintaining pipelines, more time managing fieldwork.
 
-## Features
+## ✨ Features
 
-### 9 automated checks
+### 🔍 9 automated checks
 
 | Check | What it catches | Severity |
 |-------|----------------|----------|
@@ -47,7 +47,7 @@ data2explore gives you a complete HFC workflow in a single app: import your data
 | **Duration Anomaly** | Interviews that are impossibly short, suspiciously long, or heaped at round numbers | Warning / Critical |
 | **Allowed Values** | Column values outside a defined set of valid options | Critical |
 
-### Workflow
+### 🔄 Workflow
 
 ```
 Import  -->  Map Columns  -->  Configure Rules  -->  Run  -->  Results
@@ -57,7 +57,7 @@ Import  -->  Map Columns  -->  Configure Rules  -->  Run  -->  Results
  TXT          duration          allowed values                 enumerator analytics
 ```
 
-### Exports and reporting
+### 📊 Exports and reporting
 
 - **Excel workbook** with per-enumerator review sheets, summary, and editable Status/Note columns
 - **CSV export** for external processing
@@ -67,29 +67,29 @@ Import  -->  Map Columns  -->  Configure Rules  -->  Run  -->  Results
   <img src="docs/screenshot-5-export.png" alt="Excel report export" width="700" />
 </p>
 
-### Delta tracking
-
-Run checks daily on updated data. data2explore compares consecutive runs and shows which flags are **new**, **resolved**, or **persisting** — so you focus on what changed.
-
-### Survey performance dashboard
+### 📈 Survey performance dashboard
 
 - Daily completion trends
 - Interview duration distributions
 - Per-enumerator productivity metrics with flag counts
 
-### Privacy-first
+### 🔁 Delta tracking
+
+Run checks daily on updated data. data2explore compares consecutive runs and shows which flags are **new**, **resolved**, or **persisting**, so the team can focus on what changed.
+
+### 🔒 Privacy-first
 
 All processing happens locally via an embedded Python engine. No cloud services, no data upload, no telemetry. Your survey data stays on your machine.
 
-## Download
+## 📥 Download
 
-> **Windows only** for now. macOS and Linux support is planned.
+> **Windows only** for now.
 
 Download the latest installer from [**GitHub Releases**](https://github.com/thoriqakbar/data2explore/releases).
 
 Run the `.exe` installer. Windows SmartScreen may show an "unknown publisher" warning (the app is not code-signed yet) — click **More info** then **Run anyway**.
 
-### Supported data formats
+### 📂 Supported data formats
 
 | Format | Extension | Notes |
 |--------|-----------|-------|
@@ -98,11 +98,11 @@ Run the `.exe` installer. Windows SmartScreen may show an "unknown publisher" wa
 | Stata | `.dta` | Stata 14+ binary format |
 | Text | `.txt` | Auto-detects comma, tab, or pipe delimiter |
 
-## Quick start
+## 🚀 Quick start
 
 1. **Launch** data2explore
 2. **Import** your survey data file (or click "Try with sample data" to explore)
-3. **Map** your columns — the app auto-detects common field names like `respondent_id`, `interviewer_id`, `interview_date`
+3. **Map** your variable — the app auto-detects common field names like `respondent_id`, `interviewer_id`, `interview_date`
 4. **Configure** which checks to run and set thresholds (defaults work well for most surveys)
 5. **Run** — results appear in three tabs:
    - **Data Quality** — flags grouped by issue type, with delta tracking
@@ -121,14 +121,14 @@ Your configuration is auto-saved next to your data file, so daily re-runs only n
 
 ---
 
-## Building from source
+## 🏗️ Building from source
 
-### Prerequisites
+### ⚙️ Prerequisites
 
 - [Node.js](https://nodejs.org/) 18+ with [pnpm](https://pnpm.io/) 10+
 - [Python](https://www.python.org/) 3.11+ with [uv](https://docs.astral.sh/uv/)
 
-### Setup
+### 🛠️ Setup
 
 ```bash
 # Clone the repository
@@ -145,7 +145,7 @@ cd engine && uv sync && cd ..
 pnpm dev
 ```
 
-### Build the installer
+### 📦 Build the installer
 
 ```bash
 # Full pipeline: freeze Python engine + build app + create NSIS installer
@@ -154,7 +154,7 @@ pnpm package
 # Output: release/data2explore Setup X.X.X.exe
 ```
 
-### Run tests
+### 🧪 Run tests
 
 ```bash
 # Python engine tests (237 tests, 92-100% coverage)
@@ -164,7 +164,7 @@ cd engine && uv run pytest --cov
 pnpm typecheck
 ```
 
-## Architecture
+## 🏛️ Architecture
 
 ```
 Renderer (React/Vite)  --IPC-->  Main (Electron/Node)  --subprocess-->  Python engine
@@ -181,7 +181,7 @@ The app is a two-process Electron application. The React renderer communicates w
 | Packaging | PyInstaller (engine freeze), electron-builder (installer) |
 | Testing | pytest (237 tests), TypeScript strict mode |
 
-## Project structure
+## 📁 Project structure
 
 ```
 data2explore/
@@ -198,7 +198,7 @@ data2explore/
   docs/                   # Product specs and documentation
 ```
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome. If you find a bug or have a feature idea, please [open an issue](https://github.com/thoriqakbar/data2explore/issues).
 
@@ -210,6 +210,6 @@ For code contributions:
 4. Run `pnpm typecheck` and `cd engine && uv run pytest` to verify
 5. Submit a pull request
 
-## License
+## 📄 License
 
 [MIT](LICENSE) - Mochamad Thoriq Akbar
