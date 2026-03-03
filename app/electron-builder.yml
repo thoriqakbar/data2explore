@@ -1,0 +1,34 @@
+appId: com.data2explore.app
+productName: data2explore
+
+directories:
+  output: ../release
+
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+
+extraResources:
+  - from: ../engine/dist/d2e_engine
+    to: d2e_engine
+    filter:
+      - "**/*"
+  - from: ../samples/sample_survey.csv
+    to: samples/sample_survey.csv
+
+win:
+  icon: public/icon.ico
+  signingHashAlgorithms: null
+  sign: null
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+forceCodeSigning: false
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true

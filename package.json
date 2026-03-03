@@ -2,7 +2,14 @@
   "name": "data2explore",
   "version": "0.1.0",
   "private": true,
-  "description": "Local-first HFC desktop app scaffold",
+  "description": "Local-first desktop app for high-frequency checks on survey data",
+  "author": "Thoriq Akbar",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thoriqakbar/data2explore.git"
+  },
+  "homepage": "https://github.com/thoriqakbar/data2explore",
   "packageManager": "pnpm@10.30.3+sha512.c961d1e0a2d8e354ecaa5166b822516668b7f44cb5bd95122d590dd81922f606f5473b6d23ec4a5be05e7fcd18e8488d47d978bbe981872f1145d06e9a740017",
   "scripts": {
     "dev": "corepack pnpm --filter app dev",
@@ -10,10 +17,15 @@
     "typecheck": "corepack pnpm --filter app typecheck",
     "build": "corepack pnpm --filter app build",
     "engine:profile": "cd engine && uv run python -m d2e_engine profile --input ../samples/sample_survey.csv --out ../samples/profile_output.json",
-    "engine:summarize": "cd engine && uv run python -m d2e_engine summarize --input ../samples/sample_survey.csv --mapping ../samples/sample_mapping.json --out ../samples/summary_output.json"
+    "engine:summarize": "cd engine && uv run python -m d2e_engine summarize --input ../samples/sample_survey.csv --mapping ../samples/sample_mapping.json --out ../samples/summary_output.json",
+    "engine:freeze": "cd engine && uv run pyinstaller d2e_engine.spec --noconfirm",
+    "dist": "corepack pnpm --filter app dist",
+    "package": "corepack pnpm engine:freeze && corepack pnpm build && corepack pnpm dist"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "app-builder-bin",
+      "dmg-builder",
       "electron",
       "esbuild"
     ]

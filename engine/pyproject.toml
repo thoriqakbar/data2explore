@@ -1,8 +1,16 @@
 [project]
 name = "d2e-engine"
 version = "0.1.0"
-description = "data2explore deterministic engine scaffold"
+description = "Deterministic engine for data2explore high-frequency checks"
 requires-python = ">=3.11"
+license = "MIT"
+authors = [
+  { name = "Thoriq Akbar" },
+]
+
+[project.urls]
+Homepage = "https://github.com/thoriqakbar/data2explore"
+Repository = "https://github.com/thoriqakbar/data2explore"
 dependencies = [
   "openpyxl>=3.1.5",
   "pandas>=2.2.3,<2.3",
@@ -13,6 +21,7 @@ dependencies = [
 dev = [
   "pytest>=8.0",
   "pytest-cov>=5.0",
+  "pyinstaller>=6.0",
 ]
 
 [tool.pytest.ini_options]

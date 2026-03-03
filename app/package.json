@@ -1,7 +1,10 @@
 {
-  "name": "app",
+  "name": "data2explore",
   "version": "0.1.0",
   "private": true,
+  "author": "Thoriq Akbar",
+  "license": "MIT",
+  "description": "Local-first desktop app for high-frequency checks on survey data",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -10,6 +13,8 @@
     "dev:renderer": "vite",
     "dev:desktop": "wait-on tcp:5173 dist-electron/main.js && electron .",
     "build": "vite build && tsc -p tsconfig.electron.json && tsc -p tsconfig.preload.json",
+    "dist": "electron-builder --config electron-builder.yml",
+    "package": "corepack pnpm build && corepack pnpm dist",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.preload.json --noEmit"
   },
   "dependencies": {
@@ -28,6 +33,7 @@
     "tailwindcss": "^4.2.1",
     "typescript": "^5.7.3",
     "vite": "^6.2.0",
+    "electron-builder": "^25.1.8",
     "wait-on": "^8.0.3"
   }
 }

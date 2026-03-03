@@ -99,7 +99,7 @@ export function SummaryDistributionsTab({ profileResult, summaryResult }: Props)
                 >
                   <td className="py-2 pr-4 font-mono text-xs">
                     {row.variable}
-                    {row.histogram && (
+                    {(row.histogram || row.discrete_distribution) && (
                       <span className="ml-1.5 text-indigo-400 text-[10px]">
                         {selectedVariable === row.variable ? "\u25BC" : "\u25B6"}
                       </span>
@@ -118,7 +118,7 @@ export function SummaryDistributionsTab({ profileResult, summaryResult }: Props)
       </div>
 
       {/* Expanded variable detail */}
-      {selectedRow && selectedRow.histogram && (
+      {selectedRow && (selectedRow.histogram || selectedRow.discrete_distribution) && (
         <div className="p-4 bg-indigo-50/50 border border-indigo-200 rounded-lg space-y-4">
           <h4 className="font-semibold text-gray-800 text-sm">
             Distribution: <span className="font-mono">{selectedRow.variable}</span>
@@ -126,6 +126,8 @@ export function SummaryDistributionsTab({ profileResult, summaryResult }: Props)
 
           <VariableHistogramChart
             histogram={selectedRow.histogram}
+            discreteDistribution={selectedRow.discrete_distribution}
+            distributionType={selectedRow.distribution_type}
             mean={selectedRow.mean}
             label={selectedRow.variable}
           />

@@ -1,43 +1,202 @@
-# data2explore (Scaffold)
+<p align="center">
+  <img src="app/public/header.png" alt="data2explore" height="60" />
+</p>
 
-Local-first desktop scaffold for high-frequency checks (HFC) on survey data.
+<p align="center">
+  <strong>Catch survey data problems before they become research problems.</strong>
+</p>
 
-## What exists now
-- Electron + React + TypeScript app shell
-- Python engine CLI (`profile`, `summarize`)
-- Shared schema/type placeholders
-- Sample data and mapping fixtures
+<p align="center">
+  <a href="https://github.com/thoriqakbar/data2explore/releases"><img src="https://img.shields.io/github/v/release/thoriqakbar/data2explore?style=flat-square" alt="Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
+  <img src="https://img.shields.io/badge/platform-Windows-0078D6?style=flat-square&logo=windows" alt="Windows" />
+  <img src="https://img.shields.io/badge/python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+" />
+</p>
 
-## Prerequisites
-- Node.js 20+
-- pnpm 10+
-- Python 3.11+
-- uv (Python package manager)
+---
 
-## Run app (development)
+**data2explore** is a desktop app for running **high-frequency checks (HFC)** on survey data. It helps field supervisors and research teams detect data quality issues — duplicates, outliers, missing data patterns, enumerator anomalies — early in fieldwork, when problems can still be fixed.
+
+Everything runs locally. No raw data leaves your machine.
+
+<!-- TODO: Replace with actual screenshot once you have one -->
+<!-- <p align="center"><img src="docs/screenshot.png" alt="data2explore screenshot" width="700" /></p> -->
+
+## Why
+
+Survey teams collect thousands of records during fieldwork. Without daily monitoring, issues like duplicate IDs, systematic missing data, or fabricated interviews go unnoticed until analysis — weeks or months later. By then, it's too late to re-interview or correct the data.
+
+High-frequency checks solve this by flagging problems as data comes in. But setting up HFC pipelines typically requires Stata licenses, custom do-files, and technical expertise that many field teams don't have.
+
+data2explore gives you a complete HFC workflow in a single app: import your data, map your columns, configure checks, and get results — no coding, no setup, no Stata license required.
+
+## Features
+
+### 9 automated checks
+
+| Check | What it catches | Severity |
+|-------|----------------|----------|
+| **Duplicate ID** | Same respondent ID appears more than once | Critical |
+| **Missingness by Variable** | Columns with abnormally high missing rates | Warning / Critical |
+| **Missingness by Enumerator** | Enumerators with unusual per-column missing patterns | Warning |
+| **Range** | Values outside user-defined min/max bounds | Critical |
+| **Skip Logic** | Fields with data that should be empty given prior answers | Critical |
+| **Outlier (Z-score)** | Statistical outliers in numeric columns | Warning |
+| **Enumerator Anomaly Rate** | Enumerators with disproportionately high flag counts | Warning |
+| **Duration Anomaly** | Interviews that are impossibly short, suspiciously long, or heaped at round numbers | Warning / Critical |
+| **Allowed Values** | Column values outside a defined set of valid options | Critical |
+
+### Workflow
+
+```
+Import  -->  Map Columns  -->  Configure Rules  -->  Run  -->  Results
+ CSV          id                thresholds           9         flags table
+ XLSX         enumerator_id     range rules         checks     performance dashboard
+ Stata .dta   survey_date       skip logic                     distributions
+ TXT          duration          allowed values                 enumerator analytics
+```
+
+### Exports and reporting
+
+- **Excel workbook** with per-enumerator sheets, summary, flags, and editable action columns
+- **CSV export** for external processing
+- **Stata .do file** that replicates all checks in Stata 14+ syntax for independent verification
+
+### Delta tracking
+
+Run checks daily on updated data. data2explore compares consecutive runs and shows which flags are **new**, **resolved**, or **persisting** — so you focus on what changed.
+
+### Survey performance dashboard
+
+- Daily completion trends
+- Interview duration distributions
+- Per-enumerator productivity metrics with flag counts
+
+### Privacy-first
+
+All processing happens locally via an embedded Python engine. No cloud services, no data upload, no telemetry. Your survey data stays on your machine.
+
+## Download
+
+> **Windows only** for now. macOS and Linux support is planned.
+
+Download the latest installer from [**GitHub Releases**](https://github.com/thoriqakbar/data2explore/releases).
+
+Run the `.exe` installer. Windows SmartScreen may show an "unknown publisher" warning (the app is not code-signed yet) — click **More info** then **Run anyway**.
+
+### Supported data formats
+
+| Format | Extension | Notes |
+|--------|-----------|-------|
+| CSV | `.csv` | Comma-separated |
+| Excel | `.xlsx` | Reads first non-empty sheet |
+| Stata | `.dta` | Stata 14+ binary format |
+| Text | `.txt` | Auto-detects comma, tab, or pipe delimiter |
+
+## Quick start
+
+1. **Launch** data2explore
+2. **Import** your survey data file (or click "Try with sample data" to explore)
+3. **Map** your columns — the app auto-detects common field names like `respondent_id`, `interviewer_id`, `interview_date`
+4. **Configure** which checks to run and set thresholds (defaults work well for most surveys)
+5. **Run** — results appear in three tabs:
+   - **Data Quality** — flags grouped by issue type, with delta tracking
+   - **Survey Performance** — daily trends, duration charts, enumerator metrics
+   - **Summary & Distributions** — variable profiles, histograms, percentiles
+
+Your configuration is auto-saved next to your data file, so daily re-runs only need one click.
+
+---
+
+## Building from source
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18+ with [pnpm](https://pnpm.io/) 10+
+- [Python](https://www.python.org/) 3.11+ with [uv](https://docs.astral.sh/uv/)
+
+### Setup
+
 ```bash
+# Clone the repository
+git clone https://github.com/thoriqakbar/data2explore.git
+cd data2explore
+
+# Install JS dependencies
 pnpm install
+
+# Install Python dependencies
+cd engine && uv sync && cd ..
+
+# Start development
 pnpm dev
 ```
 
-## Run engine commands
+### Build the installer
+
 ```bash
-cd engine
-uv sync
-uv run python -m d2e_engine profile --input ../samples/sample_survey.csv --out ../samples/profile_output.json
-uv run python -m d2e_engine summarize --input ../samples/sample_survey.csv --mapping ../samples/sample_mapping.json --out ../samples/summary_output.json
+# Full pipeline: freeze Python engine + build app + create NSIS installer
+pnpm package
+
+# Output: release/data2explore Setup X.X.X.exe
 ```
 
-## Current pipeline
-1. Import dataset and auto-run profile.
-2. Review or load mapping config.
-3. Review range rules and optionally save config.
-4. Run summary analysis and HFC checks.
-5. Review results with severity, enumerator, and run-date filters.
-6. Compare against the previous run from the same app session.
-7. Export the Excel report or a filtered flags CSV.
+### Run tests
 
-## Next implementation targets
-1. Persist projects and run history beyond a single app session.
-2. Add editable flag status and note workflow with audit history.
-3. Close the remaining artifact gaps from `docs/OUTPUT_AND_REPRODUCIBILITY_v0.1.md` such as `summary_stats.csv`, persisted `config.json`, and Stata export.
+```bash
+# Python engine tests (231 tests, 92-100% coverage)
+cd engine && uv run pytest --cov
+
+# TypeScript type checking
+pnpm typecheck
+```
+
+## Architecture
+
+```
+Renderer (React/Vite)  --IPC-->  Main (Electron/Node)  --subprocess-->  Python engine
+   app/src/                        app/electron/                          engine/d2e_engine/
+```
+
+The app is a two-process Electron application. The React renderer communicates with the Electron main process via IPC. The main process spawns the Python engine as a child process for each command (profile, summarize, check, performance, report). In production, the Python engine is frozen into a standalone executable via PyInstaller and bundled inside the app installer.
+
+| Layer | Tech |
+|-------|------|
+| UI | React 18, TypeScript 5.7, Tailwind CSS v4, Recharts |
+| Desktop shell | Electron 34 |
+| Engine | Python 3.11, pandas, openpyxl, pyreadstat |
+| Packaging | PyInstaller (engine freeze), electron-builder (installer) |
+| Testing | pytest (231 tests), TypeScript strict mode |
+
+## Project structure
+
+```
+data2explore/
+  app/                    # Electron + React frontend
+    electron/             #   Main process (IPC, engine spawning)
+    src/                  #   React renderer (UI components)
+    public/               #   Static assets (icons, images)
+  engine/                 # Python HFC engine
+    d2e_engine/           #   Core modules (checks, profiling, export)
+      checks/             #   Individual check implementations
+    tests/                #   pytest test suite (231 tests)
+  shared/                 # Shared TypeScript types and JSON schemas
+  samples/                # Sample data for testing and demos
+  docs/                   # Product specs and documentation
+```
+
+## Contributing
+
+Contributions are welcome. If you find a bug or have a feature idea, please [open an issue](https://github.com/thoriqakbar/data2explore/issues).
+
+For code contributions:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Make your changes and add tests
+4. Run `pnpm typecheck` and `cd engine && uv run pytest` to verify
+5. Submit a pull request
+
+## License
+
+[MIT](LICENSE) - Thoriq Akbar

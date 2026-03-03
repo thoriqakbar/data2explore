@@ -263,7 +263,7 @@ export function SurveyPerformanceTab({ performanceResult, checkFlags, onSelectEn
           <div>
             <h3 className="font-semibold text-gray-800">Enumerator Patterns</h3>
             <p className="text-sm text-gray-500">
-              Ranked view of which enumerators are driving repeated issue patterns across all flags.
+              Sorted by critical flags, then total flags. Share = enumerator's flags as % of all flags.
             </p>
           </div>
           <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">

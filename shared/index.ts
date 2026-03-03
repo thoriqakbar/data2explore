@@ -10,6 +10,12 @@ export interface HistogramBin {
   count: number;
 }
 
+export interface DiscreteBar {
+  value: number;
+  label: string;
+  count: number;
+}
+
 export interface SummaryStatRow {
   variable: string;
   obs: number;
@@ -19,6 +25,8 @@ export interface SummaryStatRow {
   max: number | null;
   percentiles: Record<string, number> | null;
   histogram: HistogramBin[] | null;
+  distribution_type: "discrete" | "continuous";
+  discrete_distribution: DiscreteBar[] | null;
 }
 
 export interface SchemaColumnProfile {

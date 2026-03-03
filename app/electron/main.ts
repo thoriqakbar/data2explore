@@ -3,7 +3,7 @@ import type { FileFilter } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import { readFile, writeFile, access } from "node:fs/promises";
+import { readFile, writeFile, access, copyFile, mkdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,7 +15,9 @@ function createWindow(): void {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
-    icon: path.join(__dirname, "../public/icon.ico"),
+    icon: isDev
+      ? path.join(__dirname, "../public/icon.ico")
+      : path.join(__dirname, "../dist/icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -47,19 +49,31 @@ type RunEnginePayload = {
   checkSummary?: string;
 };
 
+function getEngineSpawn(command: string): { cmd: string; baseArgs: string[]; cwd: string } {
+  if (isDev) {
+    const repoRoot = path.resolve(__dirname, "../..");
+    return {
+      cmd: "uv",
+      baseArgs: ["run", "python", "-m", "d2e_engine", command],
+      cwd: path.join(repoRoot, "engine"),
+    };
+  }
+  // Production: frozen PyInstaller exe bundled as extraResource
+  const engineExe = path.join(process.resourcesPath, "d2e_engine", "d2e_engine.exe");
+  return {
+    cmd: engineExe,
+    baseArgs: [command],
+    cwd: path.dirname(engineExe),
+  };
+}
+
 ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
   const repoRoot = path.resolve(__dirname, "../..");
-  const engineCwd = path.join(repoRoot, "engine");
   const resolveUserPath = (p: string) =>
     path.isAbsolute(p) ? p : path.resolve(repoRoot, p);
 
-  const args = [
-    "run",
-    "python",
-    "-m",
-    "d2e_engine",
-    payload.command,
-  ];
+  const { cmd, baseArgs, cwd: engineCwd } = getEngineSpawn(payload.command);
+  const args = [...baseArgs];
 
   const isCheck = payload.command === "check";
   const isReport = payload.command === "report";
@@ -85,7 +99,7 @@ ipcMain.handle("engine:run", async (_event, payload: RunEnginePayload) => {
 
   return new Promise<{ ok: boolean; stdout: string; stderr: string; data?: unknown }>(
     (resolve) => {
-      const child = spawn("uv", args, {
+      const child = spawn(cmd, args, {
         cwd: engineCwd,
         shell: false
       });
@@ -261,14 +275,23 @@ ipcMain.handle("dofile:read", async (_event, outDir: string) => {
 });
 
 ipcMain.handle("app:sample-path", async () => {
-  const repoRoot = path.resolve(__dirname, "../..");
-  const samplePath = path.join(repoRoot, "samples", "sample_survey.csv");
+  const samplePath = isDev
+    ? path.join(path.resolve(__dirname, "../.."), "samples", "sample_survey.csv")
+    : path.join(process.resourcesPath, "samples", "sample_survey.csv");
   try {
-    await readFile(samplePath);
-    return samplePath;
+    await access(samplePath);
   } catch {
     return null;
   }
+  // In production the sample lives in read-only Program Files.
+  // Copy it to a writable temp location so sidecar outputs work.
+  if (!isDev) {
+    const dest = path.join(app.getPath("temp"), "d2e-sample", "sample_survey.csv");
+    await mkdir(path.dirname(dest), { recursive: true });
+    await copyFile(samplePath, dest);
+    return dest;
+  }
+  return samplePath;
 });
 
 // --- Recent Projects store ---

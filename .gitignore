@@ -10,6 +10,11 @@ __pycache__/
 .venv/
 *.pyc
 
+# PyInstaller / electron-builder output
+engine/build/
+engine/dist/
+release/
+
 # App runtime files
 workspace/
 *.db

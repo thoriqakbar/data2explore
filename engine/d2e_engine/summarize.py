@@ -25,6 +25,9 @@ def load_mapping_lenient(mapping_path: Path) -> dict[str, str]:
         return json.load(f)
 
 
+DISCRETE_THRESHOLD = 20
+
+
 def summarize_numeric(
     df: pd.DataFrame,
     excluded_columns: set[str] | None = None,
@@ -36,19 +39,36 @@ def summarize_numeric(
             continue
         series = df[col].dropna()
 
+        histogram: list[dict[str, Any]] | None = None
+        discrete_distribution: list[dict[str, Any]] | None = None
+        distribution_type: str = "continuous"
+
         if len(series):
             percentiles_dict: dict[str, float] | None = {
                 f"p{int(q * 100)}": float(series.quantile(q))
                 for q in [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
             }
-            counts, bin_edges = np.histogram(series.values, bins=20)
-            histogram: list[dict[str, Any]] | None = [
-                {"bin_start": float(bin_edges[i]), "bin_end": float(bin_edges[i + 1]), "count": int(counts[i])}
-                for i in range(len(counts))
-            ]
+            n_unique = int(series.nunique())
+            if n_unique <= DISCRETE_THRESHOLD:
+                vc = series.value_counts().sort_index()
+                discrete_distribution = [
+                    {
+                        "value": float(v),
+                        "label": str(int(v)) if float(v) == int(v) else f"{v:.1f}",
+                        "count": int(c),
+                    }
+                    for v, c in vc.items()
+                ]
+                distribution_type = "discrete"
+            else:
+                counts, bin_edges = np.histogram(series.values, bins=20)
+                histogram = [
+                    {"bin_start": float(bin_edges[i]), "bin_end": float(bin_edges[i + 1]), "count": int(counts[i])}
+                    for i in range(len(counts))
+                ]
+                distribution_type = "continuous"
         else:
             percentiles_dict = None
-            histogram = None
 
         rows.append(
             {
@@ -60,6 +80,8 @@ def summarize_numeric(
                 "max": float(series.max()) if len(series) else None,
                 "percentiles": percentiles_dict,
                 "histogram": histogram,
+                "distribution_type": distribution_type,
+                "discrete_distribution": discrete_distribution,
             }
         )
     return rows
