@@ -28,6 +28,13 @@ function formatPercent(value: number): string {
   return `${(value * 100).toFixed(0)}%`;
 }
 
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "\u2014";
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export function SurveyPerformanceTab({ performanceResult, checkFlags, onSelectEnumerator }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("total_surveys");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -118,7 +125,7 @@ export function SurveyPerformanceTab({ performanceResult, checkFlags, onSelectEn
     <div className="space-y-6">
       {/* Totals cards */}
       {totals && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
             <p className="text-2xl font-bold text-gray-900">{totals.total_surveys.toLocaleString()}</p>
             <p className="text-xs text-gray-500 mt-0.5">Total Surveys</p>
@@ -130,6 +137,14 @@ export function SurveyPerformanceTab({ performanceResult, checkFlags, onSelectEn
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
             <p className="text-2xl font-bold text-gray-900">{totals.date_range_days}</p>
             <p className="text-xs text-gray-500 mt-0.5">Days of Fieldwork</p>
+          </div>
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
+            <p className="text-2xl font-bold text-gray-900 text-base">{formatDate(totals.first_date)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Survey Start</p>
+          </div>
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
+            <p className="text-2xl font-bold text-gray-900 text-base">{formatDate(totals.last_date)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Latest Survey</p>
           </div>
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-center">
             <p className="text-2xl font-bold text-gray-900">
@@ -170,9 +185,9 @@ export function SurveyPerformanceTab({ performanceResult, checkFlags, onSelectEn
       {sortedEnumerators.length > 0 && (
         <div className="space-y-2">
           <h3 className="font-semibold text-gray-800">Enumerator Stats</h3>
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr className="border-b border-gray-200">
                   <th
                     className="text-left py-2 px-3 font-medium text-gray-600 cursor-pointer select-none"
@@ -251,9 +266,9 @@ export function SurveyPerformanceTab({ performanceResult, checkFlags, onSelectEn
               Ranked view of which enumerators are driving repeated issue patterns across all flags.
             </p>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-2 px-3 font-medium text-gray-600">Enumerator</th>
                   <th className="text-right py-2 px-3 font-medium text-gray-600">Total Flags</th>

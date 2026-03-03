@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
   AllowedValuesRule,
   CheckOutput,
@@ -11,7 +11,9 @@ import type {
   ProfileOutput,
   ProjectConfig,
   RangeRule,
+  RecentProject,
   RunMetadata,
+  SkipRule,
   SummaryOutput,
 } from "../../shared/index";
 import { Stepper } from "./components/Stepper";
@@ -111,6 +113,7 @@ function sanitizeLoadedConfig(raw: unknown, profileResult: ProfileOutput | null)
     duration?: unknown;
     range_rules?: unknown;
     allowed_values_rules?: unknown;
+    skip_rules?: unknown;
     excluded_columns?: unknown;
     enabled_checks?: unknown;
   };
@@ -178,6 +181,45 @@ function sanitizeLoadedConfig(raw: unknown, profileResult: ProfileOutput | null)
     allowed_values_rules.push({ column, values });
   }
 
+  // Skip rules
+  const skipInput = Array.isArray(candidate.skip_rules) ? candidate.skip_rules : [];
+  const skip_rules: SkipRule[] = [];
+  for (const rule of skipInput) {
+    if (!rule || typeof rule !== "object") continue;
+    const record = rule as Record<string, unknown>;
+    const dependent = typeof record.dependent_column === "string" ? record.dependent_column : "";
+    if (!dependent) continue;
+    if (columns.size > 0 && !columns.has(dependent)) {
+      warnings.push(`Dropped skip rule targeting "${dependent}" because the column is missing in this dataset.`);
+      continue;
+    }
+    const rawGroups = Array.isArray(record.condition_groups) ? record.condition_groups : [];
+    const condition_groups: Array<{ conditions: Array<{ column: string; values: string[] }>; logic: "AND" | "OR" }> = [];
+    for (const group of rawGroups) {
+      if (!group || typeof group !== "object") continue;
+      const g = group as Record<string, unknown>;
+      const rawConditions = Array.isArray(g.conditions) ? g.conditions : [];
+      const conditions: Array<{ column: string; values: string[] }> = [];
+      for (const cond of rawConditions) {
+        if (!cond || typeof cond !== "object") continue;
+        const c = cond as Record<string, unknown>;
+        const col = typeof c.column === "string" ? c.column : "";
+        if (!col) continue;
+        if (columns.size > 0 && !columns.has(col)) continue;
+        const vals = Array.isArray(c.values) ? c.values.map(String) : [];
+        conditions.push({ column: col, values: vals });
+      }
+      if (conditions.length > 0) {
+        const logic = g.logic === "OR" ? "OR" as const : "AND" as const;
+        condition_groups.push({ conditions, logic });
+      }
+    }
+    if (condition_groups.length > 0) {
+      const group_logic = record.group_logic === "OR" ? "OR" as const : "AND" as const;
+      skip_rules.push({ condition_groups, group_logic, dependent_column: dependent });
+    }
+  }
+
   // Excluded columns
   const exInput = Array.isArray(candidate.excluded_columns) ? candidate.excluded_columns : [];
   const excluded_columns: string[] = [];
@@ -213,6 +255,7 @@ function sanitizeLoadedConfig(raw: unknown, profileResult: ProfileOutput | null)
       duration,
       range_rules,
       allowed_values_rules,
+      skip_rules,
       excluded_columns,
       enabled_checks,
     },
@@ -231,6 +274,7 @@ export function App() {
   const [performanceResult, setPerformanceResult] = useState<PerformanceOutput | null>(null);
   const [rangeRules, setRangeRules] = useState<RangeRule[]>([]);
   const [allowedValuesRules, setAllowedValuesRules] = useState<AllowedValuesRule[]>([]);
+  const [skipRules, setSkipRules] = useState<SkipRule[]>([]);
   const [excludedColumns, setExcludedColumns] = useState<string[]>([]);
   const [enabledChecks, setEnabledChecks] = useState<string[] | null>(null);
   const [runPhases, setRunPhases] = useState<Phase[]>([]);
@@ -252,6 +296,14 @@ export function App() {
     };
     timerId: ReturnType<typeof setTimeout>;
   } | null>(null);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
+
+  // Load recent projects on mount
+  useEffect(() => {
+    window.d2e.getRecentProjects().then(setRecentProjects).catch((err) => {
+      console.warn("Failed to load recent projects:", err);
+    });
+  }, []);
 
   const handleProfileFile = useCallback(async (selected: string) => {
     setError(null);
@@ -282,21 +334,34 @@ export function App() {
     const autoMapping = autoGuessMapping(columnNames);
     const autoDuration = autoGuessDuration(columnNames);
 
-    if (runContext.lastConfigSnapshot) {
+    // Priority: in-session snapshot > sidecar config > auto-guess only
+    let configSource: unknown = runContext.lastConfigSnapshot;
+    if (!configSource) {
       try {
-        const loaded = sanitizeLoadedConfig(runContext.lastConfigSnapshot, profile);
+        configSource = await window.d2e.autoLoadConfig(selected);
+      } catch {
+        // sidecar missing or corrupt — fall through
+      }
+    }
+
+    if (configSource) {
+      try {
+        const loaded = sanitizeLoadedConfig(configSource, profile);
         setMapping({ ...autoMapping, ...loaded.config.mapping });
         setDurationMapping(loaded.config.duration ?? autoDuration);
         setRangeRules(loaded.config.range_rules);
         setAllowedValuesRules(loaded.config.allowed_values_rules ?? []);
+        setSkipRules(loaded.config.skip_rules ?? []);
         setExcludedColumns(loaded.config.excluded_columns ?? []);
         setEnabledChecks(loaded.config.enabled_checks ?? null);
         if (loaded.warning) setNotice(loaded.warning);
+        else if (!runContext.lastConfigSnapshot) setNotice("Loaded saved configuration.");
       } catch {
         setMapping(autoMapping);
         setDurationMapping(autoDuration);
         setRangeRules([]);
         setAllowedValuesRules([]);
+        setSkipRules([]);
         setExcludedColumns([]);
         setEnabledChecks(null);
       }
@@ -305,6 +370,7 @@ export function App() {
       setDurationMapping(autoDuration);
       setRangeRules([]);
       setAllowedValuesRules([]);
+      setSkipRules([]);
       setExcludedColumns([]);
       setEnabledChecks(null);
     }
@@ -339,6 +405,24 @@ export function App() {
     }
   }, [handleProfileFile]);
 
+  const handleOpenRecent = useCallback(async (recentFilePath: string) => {
+    try {
+      await handleProfileFile(recentFilePath);
+    } catch (err) {
+      const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      setError(`Failed to open recent project: ${msg}`);
+    }
+  }, [handleProfileFile]);
+
+  const handleRemoveRecent = useCallback(async (recentFilePath: string) => {
+    try {
+      await window.d2e.removeRecentProject(recentFilePath);
+      setRecentProjects((prev) => prev.filter((p) => p.filePath !== recentFilePath));
+    } catch {
+      // silent — non-critical
+    }
+  }, []);
+
   const handleConfirmMapping = useCallback(() => {
     setStep("rules");
   }, []);
@@ -354,6 +438,7 @@ export function App() {
       setDurationMapping(loaded.config.duration ?? DEFAULT_DURATION);
       setRangeRules(loaded.config.range_rules);
       setAllowedValuesRules(loaded.config.allowed_values_rules ?? []);
+      setSkipRules(loaded.config.skip_rules ?? []);
       setExcludedColumns(loaded.config.excluded_columns ?? []);
       setEnabledChecks(loaded.config.enabled_checks ?? null);
       setRunContext((current) => ({ ...current, lastConfigSnapshot: loaded.config }));
@@ -373,6 +458,7 @@ export function App() {
         duration: durationMapping,
         range_rules: rangeRules,
         allowed_values_rules: allowedValuesRules,
+        skip_rules: skipRules,
         excluded_columns: excludedColumns,
         enabled_checks: enabledChecks ?? undefined,
       };
@@ -383,7 +469,7 @@ export function App() {
     } catch (err) {
       setError(`Failed to save configuration: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, [mapping, durationMapping, rangeRules, allowedValuesRules, excludedColumns, enabledChecks]);
+  }, [mapping, durationMapping, rangeRules, allowedValuesRules, skipRules, excludedColumns, enabledChecks]);
 
   const handleRunAnalysis = useCallback(async () => {
     if (!filePath) return;
@@ -393,7 +479,7 @@ export function App() {
 
     const initialPhases: Phase[] = [
       { label: "Summary analysis", status: "running" },
-      { label: `HFC checks (${enabledChecks ? enabledChecks.length : 8} checks)`, status: "pending" },
+      { label: `HFC checks (${enabledChecks ? enabledChecks.length : 9} checks)`, status: "pending" },
       { label: "Performance metrics", status: "pending" },
     ];
     setRunPhases(initialPhases);
@@ -410,6 +496,7 @@ export function App() {
         duration: durationMapping,
         range_rules: rangeRules,
         allowed_values_rules: allowedValuesRules,
+        skip_rules: skipRules,
         excluded_columns: excludedColumns,
         enabled_checks: enabledChecks ?? undefined,
       };
@@ -417,6 +504,7 @@ export function App() {
       const engineConfig: Record<string, unknown> = {};
       if (rangeRules.length > 0) engineConfig.range_rules = rangeRules;
       if (allowedValuesRules.length > 0) engineConfig.allowed_values_rules = allowedValuesRules;
+      if (skipRules.length > 0) engineConfig.skip_rules = skipRules;
       if (excludedColumns.length > 0) engineConfig.excluded_columns = excludedColumns;
 
       // Translate duration mapping to flat engine config keys
@@ -530,12 +618,29 @@ export function App() {
       }
 
       setRunPhases((prev) => prev.map((p, i) => i === 2 ? { ...p, status: "done" } : p));
+
+      // Auto-save config sidecar + upsert recent project registry
+      const fileName = filePath.split(/[\\/]/).pop() ?? filePath;
+      const recentEntry: RecentProject = {
+        filePath,
+        fileName,
+        lastRunAt: new Date().toISOString(),
+        rowCount: profileResult?.schema_profile.row_count ?? 0,
+        colCount: profileResult?.schema_profile.column_count ?? 0,
+      };
+      window.d2e.autoSaveConfig(filePath, projectConfig, recentEntry)
+        .then(() => window.d2e.getRecentProjects())
+        .then(setRecentProjects)
+        .catch((err) => {
+          console.error("Auto-save config / recent projects failed:", err);
+        });
+
       setStep("results");
     } catch (err) {
       setError(String(err));
       setStep("rules");
     }
-  }, [filePath, mapping, durationMapping, rangeRules, allowedValuesRules, excludedColumns, enabledChecks]);
+  }, [filePath, profileResult, mapping, durationMapping, rangeRules, allowedValuesRules, skipRules, excludedColumns, enabledChecks]);
 
   const handleExportReport = useCallback(async () => {
     if (!profileResult || !summaryResult || !filePath) return;
@@ -788,6 +893,7 @@ export function App() {
     setDurationMapping(DEFAULT_DURATION);
     setRangeRules([]);
     setAllowedValuesRules([]);
+    setSkipRules([]);
     setExcludedColumns([]);
     setEnabledChecks(null);
     setSummaryResult(null);
@@ -833,6 +939,9 @@ export function App() {
           error={error}
           onSelectFile={handleSelectFile}
           onLoadSample={handleLoadSample}
+          recentProjects={recentProjects}
+          onOpenRecent={handleOpenRecent}
+          onRemoveRecent={handleRemoveRecent}
         />
         </StepPanel>
       )}
@@ -860,6 +969,8 @@ export function App() {
           onRulesChange={setRangeRules}
           allowedValuesRules={allowedValuesRules}
           onAllowedValuesChange={setAllowedValuesRules}
+          skipRules={skipRules}
+          onSkipRulesChange={setSkipRules}
           excludedColumns={excludedColumns}
           onExcludedColumnsChange={setExcludedColumns}
           enabledChecks={enabledChecks}

@@ -38,5 +38,9 @@ interface Window {
     saveDecisions: (outDir: string, data: unknown) => Promise<boolean>;
     importReviewedCSV: () => Promise<string | null>;
     readDofile: (outDir: string) => Promise<string | null>;
+    getRecentProjects: () => Promise<import("../../shared/index").RecentProject[]>;
+    removeRecentProject: (filePath: string) => Promise<boolean>;
+    autoSaveConfig: (filePath: string, config: unknown, recentEntry?: import("../../shared/index").RecentProject) => Promise<boolean>;
+    autoLoadConfig: (filePath: string) => Promise<unknown | null>;
   };
 }

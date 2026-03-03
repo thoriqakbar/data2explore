@@ -24,6 +24,7 @@ const PROBLEM_CATEGORIES: CategoryDef[] = [
   { key: "missingness", label: "Missingness", check_ids: ["CHK-002", "CHK-004"] },
   { key: "outliers", label: "Outliers", check_ids: ["CHK-008"] },
   { key: "range", label: "Range", check_ids: ["CHK-005"] },
+  { key: "skip_logic", label: "Skip Logic", check_ids: ["CHK-006"] },
   { key: "duplicate_id", label: "Duplicate / ID", check_ids: ["CHK-001"] },
   { key: "enumerator_risk", label: "Enumerator Risk", check_ids: ["CHK-009"] },
 ];

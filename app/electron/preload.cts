@@ -42,4 +42,12 @@ contextBridge.exposeInMainWorld("d2e", {
     ipcRenderer.invoke("decisions:import-csv") as Promise<string | null>,
   readDofile: (outDir: string) =>
     ipcRenderer.invoke("dofile:read", outDir) as Promise<string | null>,
+  getRecentProjects: () =>
+    ipcRenderer.invoke("recent-projects:list") as Promise<unknown[]>,
+  removeRecentProject: (filePath: string) =>
+    ipcRenderer.invoke("recent-projects:remove", filePath) as Promise<boolean>,
+  autoSaveConfig: (filePath: string, config: unknown, recentEntry?: unknown) =>
+    ipcRenderer.invoke("config:auto-save", filePath, config, recentEntry) as Promise<boolean>,
+  autoLoadConfig: (filePath: string) =>
+    ipcRenderer.invoke("config:auto-load", filePath) as Promise<unknown | null>,
 });

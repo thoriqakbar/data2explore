@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AllowedValuesRule, ProfileOutput, RangeRule } from "../../../shared/index";
+import type { AllowedValuesRule, ProfileOutput, RangeRule, SkipRule, SkipConditionGroup } from "../../../shared/index";
 
 interface Props {
   profileResult: ProfileOutput;
@@ -7,6 +7,8 @@ interface Props {
   onRulesChange: (rules: RangeRule[]) => void;
   allowedValuesRules: AllowedValuesRule[];
   onAllowedValuesChange: (rules: AllowedValuesRule[]) => void;
+  skipRules: SkipRule[];
+  onSkipRulesChange: (rules: SkipRule[]) => void;
   excludedColumns: string[];
   onExcludedColumnsChange: (cols: string[]) => void;
   enabledChecks: string[] | null;
@@ -114,6 +116,18 @@ const ALL_CHECKS: Array<{
     },
   },
   {
+    id: "CHK-006",
+    name: "Skip Logic",
+    description: "Flag values that should be missing per skip rules",
+    requiredFields: ["id"],
+    glossary: {
+      detects: "Rows where a dependent column has a value despite skip conditions being met — indicates data entry errors or questionnaire programming issues.",
+      severity: "Critical",
+      thresholds: "User-defined skip rules below. If conditions fire and dependent column is not empty, the row is flagged.",
+      remediation: "Verify with original record. Check if skip logic was correctly programmed in the instrument. Correct the value or clear it if genuinely skipped.",
+    },
+  },
+  {
     id: "CHK-009",
     name: "Enumerator Anomaly Rate",
     description: "Flag enumerators with high flag rates",
@@ -143,6 +157,8 @@ export function RulesStep({
   onRulesChange,
   allowedValuesRules,
   onAllowedValuesChange,
+  skipRules,
+  onSkipRulesChange,
   excludedColumns,
   onExcludedColumnsChange,
   enabledChecks,
@@ -203,6 +219,110 @@ export function RulesStep({
     onAllowedValuesChange(updated);
   };
 
+  // ── Skip Logic Rule handlers ──
+  const handleAddSkipRule = () => {
+    onSkipRulesChange([
+      ...skipRules,
+      {
+        condition_groups: [{ conditions: [{ column: "", values: [] }], logic: "AND" as const }],
+        group_logic: "AND",
+        dependent_column: "",
+      },
+    ]);
+  };
+
+  const handleRemoveSkipRule = (index: number) => {
+    onSkipRulesChange(skipRules.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateSkipGroupLogic = (index: number, logic: "AND" | "OR") => {
+    onSkipRulesChange(
+      skipRules.map((rule, i) => (i === index ? { ...rule, group_logic: logic } : rule))
+    );
+  };
+
+  const handleUpdateSkipRuleDependent = (index: number, col: string) => {
+    onSkipRulesChange(
+      skipRules.map((rule, i) => (i === index ? { ...rule, dependent_column: col } : rule))
+    );
+  };
+
+  const updateGroups = (ruleIndex: number, updater: (groups: SkipConditionGroup[]) => SkipConditionGroup[]) => {
+    onSkipRulesChange(
+      skipRules.map((rule, i) =>
+        i === ruleIndex ? { ...rule, condition_groups: updater(rule.condition_groups) } : rule
+      )
+    );
+  };
+
+  const handleAddSkipGroup = (ruleIndex: number) => {
+    updateGroups(ruleIndex, (groups) => [
+      ...groups,
+      { conditions: [{ column: "", values: [] }], logic: "AND" as const },
+    ]);
+  };
+
+  const handleUpdateGroupLogic = (ruleIndex: number, groupIndex: number, logic: "AND" | "OR") => {
+    updateGroups(ruleIndex, (groups) =>
+      groups.map((g, gi) => (gi === groupIndex ? { ...g, logic } : g))
+    );
+  };
+
+  const handleRemoveSkipGroup = (ruleIndex: number, groupIndex: number) => {
+    updateGroups(ruleIndex, (groups) => groups.filter((_, gi) => gi !== groupIndex));
+  };
+
+  const handleAddSkipCondition = (ruleIndex: number, groupIndex: number) => {
+    updateGroups(ruleIndex, (groups) =>
+      groups.map((g, gi) =>
+        gi === groupIndex
+          ? { ...g, conditions: [...g.conditions, { column: "", values: [] }] }
+          : g
+      )
+    );
+  };
+
+  const handleRemoveSkipCondition = (ruleIndex: number, groupIndex: number, condIndex: number) => {
+    updateGroups(ruleIndex, (groups) =>
+      groups.map((g, gi) =>
+        gi === groupIndex
+          ? { ...g, conditions: g.conditions.filter((_, ci) => ci !== condIndex) }
+          : g
+      )
+    );
+  };
+
+  const handleUpdateSkipConditionColumn = (ruleIndex: number, groupIndex: number, condIndex: number, col: string) => {
+    updateGroups(ruleIndex, (groups) =>
+      groups.map((g, gi) =>
+        gi === groupIndex
+          ? {
+              ...g,
+              conditions: g.conditions.map((c, ci) =>
+                ci === condIndex ? { ...c, column: col } : c
+              ),
+            }
+          : g
+      )
+    );
+  };
+
+  const handleUpdateSkipConditionValues = (ruleIndex: number, groupIndex: number, condIndex: number, raw: string) => {
+    const values = raw.split(",").map((v) => v.trim()).filter((v) => v !== "");
+    updateGroups(ruleIndex, (groups) =>
+      groups.map((g, gi) =>
+        gi === groupIndex
+          ? {
+              ...g,
+              conditions: g.conditions.map((c, ci) =>
+                ci === condIndex ? { ...c, values } : c
+              ),
+            }
+          : g
+      )
+    );
+  };
+
   // ── Excluded Columns handlers ──
   const handleAddExcluded = (column: string) => {
     if (!excludedColumns.includes(column)) {
@@ -230,6 +350,21 @@ export function RulesStep({
   for (const rule of allowedValuesRules) {
     if (rule.values.length === 0) {
       warnings.push(`"${rule.column}" allowed-values list is empty — rule has no effect.`);
+    }
+  }
+  for (const [si, srule] of skipRules.entries()) {
+    if (srule.condition_groups.length === 0) {
+      warnings.push(`Skip rule #${si + 1} has no condition groups — rule has no effect.`);
+    }
+    for (const group of srule.condition_groups) {
+      for (const cond of group.conditions) {
+        if (cond.column && cond.values.length === 0) {
+          warnings.push(`Skip rule #${si + 1}: condition on "${cond.column}" has no trigger values.`);
+        }
+      }
+      if (srule.dependent_column && group.conditions.some((c) => c.column === srule.dependent_column)) {
+        warnings.push(`Skip rule #${si + 1}: dependent column "${srule.dependent_column}" is also a condition column.`);
+      }
     }
   }
   for (const rule of rangeRules) {
@@ -550,6 +685,207 @@ export function RulesStep({
           </button>
         </div>
       )}
+
+      <hr className="border-gray-200" />
+
+      {/* ── Skip Logic Rules ── */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">
+          Skip Logic Rules
+        </h2>
+        <p className="text-sm text-gray-500">
+          Define skip patterns: when conditions are met, the dependent column
+          must be empty. Violations are flagged as critical by CHK-006.
+        </p>
+      </div>
+
+      {skipRules.length === 0 ? (
+        <div className="text-sm text-gray-400 italic py-4">
+          No skip rules defined. CHK-006 (Skip Logic) will be skipped.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {skipRules.map((rule, ri) => (
+            <div
+              key={ri}
+              className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  Rule #{ri + 1}
+                </span>
+                <button
+                  onClick={() => handleRemoveSkipRule(ri)}
+                  className="text-gray-400 hover:text-red-500 transition-colors text-lg leading-none"
+                  title="Remove rule"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Group logic toggle */}
+              {rule.condition_groups.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Groups connected by:</span>
+                  <button
+                    onClick={() => handleUpdateSkipGroupLogic(ri, "AND")}
+                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                      rule.group_logic === "AND"
+                        ? "bg-indigo-100 text-indigo-700 font-semibold"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    AND — all groups must match
+                  </button>
+                  <button
+                    onClick={() => handleUpdateSkipGroupLogic(ri, "OR")}
+                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                      rule.group_logic === "OR"
+                        ? "bg-amber-100 text-amber-700 font-semibold"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    OR — any group can match
+                  </button>
+                </div>
+              )}
+
+              {/* Condition Groups */}
+              <div className="space-y-2">
+                {rule.condition_groups.map((group, gi) => (
+                  <div key={gi}>
+                    {gi > 0 && (
+                      <div className="flex items-center gap-2 pl-3 py-1">
+                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${
+                          rule.group_logic === "OR"
+                            ? "text-amber-600 bg-amber-50"
+                            : "text-indigo-500 bg-indigo-50"
+                        }`}>
+                          {rule.group_logic}
+                        </span>
+                        <div className="flex-1 border-t border-gray-200" />
+                      </div>
+                    )}
+                    <div className="pl-3 py-2 space-y-1.5 border-l-2 border-gray-200">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                          Group {gi + 1}
+                        </span>
+                        {group.conditions.length > 1 && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleUpdateGroupLogic(ri, gi, "AND")}
+                              className={`px-1.5 py-0.5 text-[10px] rounded ${
+                                group.logic === "AND"
+                                  ? "bg-indigo-100 text-indigo-700 font-semibold"
+                                  : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                              }`}
+                            >
+                              AND
+                            </button>
+                            <button
+                              onClick={() => handleUpdateGroupLogic(ri, gi, "OR")}
+                              className={`px-1.5 py-0.5 text-[10px] rounded ${
+                                group.logic === "OR"
+                                  ? "bg-amber-100 text-amber-700 font-semibold"
+                                  : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                              }`}
+                            >
+                              OR
+                            </button>
+                          </div>
+                        )}
+                        {rule.condition_groups.length > 1 && (
+                          <button
+                            onClick={() => handleRemoveSkipGroup(ri, gi)}
+                            className="ml-auto text-gray-400 hover:text-red-500 transition-colors text-xs leading-none"
+                            title="Remove group"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                      {group.conditions.map((cond, ci) => (
+                        <div key={ci}>
+                          {ci > 0 && (
+                            <span className={`text-[10px] font-bold pl-1 block py-0.5 ${
+                              group.logic === "OR" ? "text-amber-500" : "text-indigo-400"
+                            }`}>{group.logic}</span>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={cond.column}
+                              onChange={(e) => handleUpdateSkipConditionColumn(ri, gi, ci, e.target.value)}
+                              className="border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-40"
+                            >
+                              <option value="">Select column...</option>
+                              {allColumns.map((col) => (
+                                <option key={col} value={col}>{col}</option>
+                              ))}
+                            </select>
+                            <span className="text-xs text-gray-400">is one of</span>
+                            <input
+                              type="text"
+                              value={cond.values.join(", ")}
+                              onChange={(e) => handleUpdateSkipConditionValues(ri, gi, ci, e.target.value)}
+                              placeholder="e.g. male, no"
+                              className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                            />
+                            {group.conditions.length > 1 && (
+                              <button
+                                onClick={() => handleRemoveSkipCondition(ri, gi, ci)}
+                                className="text-gray-400 hover:text-red-500 transition-colors text-sm leading-none"
+                                title="Remove condition"
+                              >
+                                &times;
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => handleAddSkipCondition(ri, gi)}
+                        className="text-xs text-gray-500 hover:text-indigo-600"
+                      >
+                        + Add condition
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  onClick={() => handleAddSkipGroup(ri)}
+                  className="ml-3 text-xs text-indigo-600 hover:text-indigo-800"
+                >
+                  + Add another group
+                </button>
+              </div>
+
+              {/* Dependent column */}
+              <div className="flex items-center gap-2 pt-1 border-t border-gray-200">
+                <span className="text-xs font-medium text-gray-600">Then</span>
+                <select
+                  value={rule.dependent_column}
+                  onChange={(e) => handleUpdateSkipRuleDependent(ri, e.target.value)}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none w-40"
+                >
+                  <option value="">Select column...</option>
+                  {allColumns.map((col) => (
+                    <option key={col} value={col}>{col}</option>
+                  ))}
+                </select>
+                <span className="text-xs text-gray-500">must be empty</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={handleAddSkipRule}
+        className="px-3 py-2 text-sm font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+      >
+        + Add Skip Rule
+      </button>
 
       <hr className="border-gray-200" />
 

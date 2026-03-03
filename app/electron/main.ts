@@ -3,7 +3,7 @@ import type { FileFilter } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, access } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -265,6 +265,92 @@ ipcMain.handle("app:sample-path", async () => {
   try {
     await readFile(samplePath);
     return samplePath;
+  } catch {
+    return null;
+  }
+});
+
+// --- Recent Projects store ---
+
+type RecentProject = {
+  filePath: string;
+  fileName: string;
+  lastRunAt: string;
+  rowCount: number;
+  colCount: number;
+};
+
+const MAX_RECENT = 8;
+
+function getRecentProjectsPath(): string {
+  return path.join(app.getPath("userData"), "recent-projects.json");
+}
+
+async function readRecentProjects(): Promise<RecentProject[]> {
+  try {
+    const raw = await readFile(getRecentProjectsPath(), "utf-8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeRecentProjects(projects: RecentProject[]): Promise<void> {
+  await writeFile(getRecentProjectsPath(), JSON.stringify(projects, null, 2), "utf-8");
+}
+
+async function upsertRecentProject(entry: RecentProject): Promise<void> {
+  const projects = await readRecentProjects();
+  const idx = projects.findIndex((p) => p.filePath === entry.filePath);
+  if (idx !== -1) projects.splice(idx, 1);
+  projects.unshift(entry);
+  if (projects.length > MAX_RECENT) projects.length = MAX_RECENT;
+  await writeRecentProjects(projects);
+}
+
+ipcMain.handle("recent-projects:list", async () => {
+  const projects = await readRecentProjects();
+  const valid: RecentProject[] = [];
+  for (const p of projects) {
+    try {
+      await access(p.filePath);
+      valid.push(p);
+    } catch {
+      // file no longer exists — skip
+    }
+  }
+  // Persist the cleaned list if entries were removed
+  if (valid.length !== projects.length) {
+    await writeRecentProjects(valid);
+  }
+  return valid;
+});
+
+ipcMain.handle("recent-projects:remove", async (_event, filePath: string) => {
+  const projects = await readRecentProjects();
+  const filtered = projects.filter((p) => p.filePath !== filePath);
+  await writeRecentProjects(filtered);
+  return true;
+});
+
+ipcMain.handle(
+  "config:auto-save",
+  async (_event, filePath: string, config: unknown, recentEntry?: RecentProject) => {
+    const sidecarPath = filePath + ".d2e-config.json";
+    await writeFile(sidecarPath, JSON.stringify(config, null, 2), "utf-8");
+    if (recentEntry) {
+      await upsertRecentProject(recentEntry);
+    }
+    return true;
+  }
+);
+
+ipcMain.handle("config:auto-load", async (_event, filePath: string) => {
+  const sidecarPath = filePath + ".d2e-config.json";
+  try {
+    const raw = await readFile(sidecarPath, "utf-8");
+    return JSON.parse(raw);
   } catch {
     return null;
   }

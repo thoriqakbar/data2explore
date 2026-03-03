@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ProfileOutput } from "../../../shared/index";
+import type { ProfileOutput, RecentProject } from "../../../shared/index";
 
 interface Props {
   filePath: string | null;
@@ -7,12 +7,26 @@ interface Props {
   error: string | null;
   onSelectFile: () => void;
   onLoadSample?: () => void;
+  recentProjects?: RecentProject[];
+  onOpenRecent?: (filePath: string) => void;
+  onRemoveRecent?: (filePath: string) => void;
+}
+
+function formatRelativeDate(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 const FLOW_STEPS = ["Import", "Map", "Rules", "Run", "Results"];
 const FORMAT_BADGES = ["CSV", "XLSX", "Stata (.dta)", "TXT"];
 
-export function ImportStep({ filePath, profileResult, error, onSelectFile, onLoadSample }: Props) {
+export function ImportStep({ filePath, profileResult, error, onSelectFile, onLoadSample, recentProjects, onOpenRecent, onRemoveRecent }: Props) {
   const isLoading = filePath !== null && profileResult === null && error === null;
   const fileName = filePath ? filePath.split(/[\\/]/).pop() : null;
   const [expanded, setExpanded] = useState(false);
@@ -102,6 +116,42 @@ export function ImportStep({ filePath, profileResult, error, onSelectFile, onLoa
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {recentProjects && recentProjects.length > 0 && !isLoading && !profileResult && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Recent projects</p>
+          <div className="space-y-1.5">
+            {recentProjects.map((project) => (
+              <button
+                key={project.filePath}
+                onClick={() => onOpenRecent?.(project.filePath)}
+                className="w-full text-left group flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-mono text-slate-700 truncate">{project.fileName}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {project.rowCount.toLocaleString()} rows, {project.colCount} cols
+                    <span className="mx-1.5">·</span>
+                    {formatRelativeDate(project.lastRunAt)}
+                  </p>
+                </div>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); onRemoveRecent?.(project.filePath); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onRemoveRecent?.(project.filePath); } }}
+                  className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-slate-500 transition-opacity"
+                  title="Remove from recent"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                    <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+                  </svg>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

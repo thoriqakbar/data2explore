@@ -180,6 +180,22 @@ export interface AllowedValuesRule {
   values: string[];
 }
 
+export interface SkipCondition {
+  column: string;
+  values: string[];
+}
+
+export interface SkipConditionGroup {
+  conditions: SkipCondition[];
+  logic: "AND" | "OR";
+}
+
+export interface SkipRule {
+  condition_groups: SkipConditionGroup[];
+  group_logic: "AND" | "OR";
+  dependent_column: string;
+}
+
 export interface DurationMapping {
   mode: "column" | "start_end" | "none";
   duration_column?: string;
@@ -194,6 +210,15 @@ export interface ProjectConfig {
   duration?: DurationMapping;
   range_rules: RangeRule[];
   allowed_values_rules?: AllowedValuesRule[];
+  skip_rules?: SkipRule[];
   excluded_columns?: string[];
   enabled_checks?: string[];
+}
+
+export interface RecentProject {
+  filePath: string;
+  fileName: string;
+  lastRunAt: string;    // ISO timestamp
+  rowCount: number;
+  colCount: number;
 }
