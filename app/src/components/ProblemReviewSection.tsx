@@ -9,7 +9,7 @@ const INITIAL_VISIBLE_RECORDS = 10;
 interface Props {
   section: ProblemSection;
   defaultExpanded?: boolean;
-  onResolveFlags?: (flags: FlagRow[], reason: string, note: string) => void;
+  onResolveFlags?: (flags: FlagRow[], note: string) => void;
 }
 
 export function ProblemReviewSection({ section, defaultExpanded = false, onResolveFlags }: Props) {
@@ -110,8 +110,8 @@ export function ProblemReviewSection({ section, defaultExpanded = false, onResol
       {resolvingAll && onResolveFlags && (
         <ResolveDialog
           flags={section.records.flatMap(r => r.flags)}
-          onConfirm={(reason, note) => {
-            onResolveFlags(section.records.flatMap(r => r.flags), reason, note);
+          onConfirm={(note) => {
+            onResolveFlags(section.records.flatMap(r => r.flags), note);
             setResolvingAll(false);
           }}
           onCancel={() => setResolvingAll(false)}

@@ -5,7 +5,7 @@ import { ResolveDialog } from "./ResolveDialog";
 
 interface Props {
   group: ProblemRecordGroup;
-  onResolveFlags?: (flags: FlagRow[], reason: string, note: string) => void;
+  onResolveFlags?: (flags: FlagRow[], note: string) => void;
 }
 
 export function ProblemRecordCard({ group, onResolveFlags }: Props) {
@@ -69,8 +69,8 @@ export function ProblemRecordCard({ group, onResolveFlags }: Props) {
       {resolvingFlag && onResolveFlags && (
         <ResolveDialog
           flags={[resolvingFlag]}
-          onConfirm={(reason, note) => {
-            onResolveFlags([resolvingFlag], reason, note);
+          onConfirm={(note) => {
+            onResolveFlags([resolvingFlag], note);
             setResolvingFlag(null);
           }}
           onCancel={() => setResolvingFlag(null)}

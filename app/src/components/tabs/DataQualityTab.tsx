@@ -9,7 +9,7 @@ interface Props {
   checkResult: CheckOutput | null | undefined;
   onExportFlags?: (content: string) => void;
   initialEnumerator?: string | null;
-  onResolveFlags?: (flags: FlagRow[], reason: string, note: string) => void;
+  onResolveFlags?: (flags: FlagRow[], note: string) => void;
   onUnresolveFlags?: (flags: FlagRow[]) => void;
   onImportReviewedCsv?: () => void;
   onExportDofile?: () => void;
@@ -90,7 +90,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
     const headers = [
       "run_id", "check_id", "check_name", "severity", "status",
       "id", "enumerator_id", "column_name", "observed_value",
-      "rule_reference", "message", "created_at", "reason", "note",
+      "rule_reference", "message", "created_at", "note",
     ];
     const sorted = [...filteredFlags].sort((a, b) =>
       a.enumerator_id.localeCompare(b.enumerator_id) ||
@@ -102,7 +102,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
       ...sorted.map((flag) => {
         const key = `${flag.id}|${flag.check_id}|${flag.column_name}`;
         const decision = decisions?.[key];
-        const row: Record<string, unknown> = { ...flag, reason: decision?.reason ?? "", note: decision?.note ?? "" };
+        const row: Record<string, unknown> = { ...flag, note: decision?.note ?? "" };
         return headers.map((h) => csvEscape(row[h])).join(",");
       }),
     ].join("\n"));
@@ -206,7 +206,6 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                       <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Column</th>
                       <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Value</th>
                       <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Message</th>
-                      <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Reason</th>
                       <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs">Note</th>
                       <th className="text-right py-2 px-3 font-medium text-slate-500 text-xs"></th>
                     </tr>
@@ -227,19 +226,16 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
                           const key = `${flag.id}|${flag.check_id}|${flag.column_name}`;
                           const decision = decisions?.[key];
                           return (
-                            <>
-                              <td className="py-2 px-3 text-xs text-slate-500 capitalize">{decision?.reason?.replace(/_/g, " ") || "\u2014"}</td>
-                              <td className="py-2 px-3 text-xs text-slate-500 max-w-[150px]">
-                                {decision?.note ? (
-                                  <span className="flex items-center gap-1" title={decision.note}>
-                                    <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                                    </svg>
-                                    <span className="truncate">{decision.note}</span>
-                                  </span>
-                                ) : "\u2014"}
-                              </td>
-                            </>
+                            <td className="py-2 px-3 text-xs text-slate-500 max-w-[150px]">
+                              {decision?.note ? (
+                                <span className="flex items-center gap-1" title={decision.note}>
+                                  <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                  </svg>
+                                  <span className="truncate">{decision.note}</span>
+                                </span>
+                              ) : "\u2014"}
+                            </td>
                           );
                         })()}
                         <td className="py-2 px-3 text-right">

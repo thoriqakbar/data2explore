@@ -652,7 +652,7 @@ export function App() {
     }
   }, [filePath, checkResult]);
 
-  const handleResolveFlags = useCallback((flagsToResolve: FlagRow[], reason: string = "accepted", note: string = "") => {
+  const handleResolveFlags = useCallback((flagsToResolve: FlagRow[], note: string = "") => {
     if (!checkResult) return;
 
     // Snapshot current state for undo
@@ -667,7 +667,7 @@ export function App() {
       const key = flagKeyStr(flag);
       newDecisions[key] = {
         status: "dismissed",
-        reason,
+        reason: "accepted",
         note,
         observed_value_at_decision: flag.observed_value,
         decided_at: now,
