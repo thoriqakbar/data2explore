@@ -20,7 +20,7 @@ export function ImportStep({ filePath, profileResult, error, onSelectFile, onLoa
   return (
     <div className="space-y-6">
       {/* How it works mini-flow */}
-      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+      <div className="flow-enter flex items-center gap-1.5 text-xs text-gray-400">
         {FLOW_STEPS.map((s, i) => (
           <span key={s} className="flex items-center gap-1.5">
             <span className={i === 0 ? "flow-step-active font-semibold" : ""}>{s}</span>
@@ -35,10 +35,11 @@ export function ImportStep({ filePath, profileResult, error, onSelectFile, onLoa
 
       {/* Format badges */}
       <div className="flex gap-2">
-        {FORMAT_BADGES.map((fmt) => (
+        {FORMAT_BADGES.map((fmt, i) => (
           <span
             key={fmt}
             className="format-badge px-2.5 py-0.5 text-xs rounded-full text-slate-500 font-medium"
+            style={{ animationDelay: `${i * 50}ms` }}
           >
             {fmt}
           </span>
@@ -57,9 +58,9 @@ export function ImportStep({ filePath, profileResult, error, onSelectFile, onLoa
         {onLoadSample && !filePath && (
           <button
             onClick={onLoadSample}
-            className="text-sm text-indigo-500 hover:text-indigo-600 transition-colors font-medium"
+            className="cta-sample text-sm text-indigo-600 font-medium bg-indigo-50 border border-indigo-200 rounded-full px-4 py-1.5"
           >
-            Try with sample data →
+            Try with sample data <span className="cta-arrow">→</span>
           </button>
         )}
       </div>

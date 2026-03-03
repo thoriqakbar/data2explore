@@ -196,9 +196,9 @@ export function OverviewTab({ checkResult, performanceResult, onNavigateToPerfor
       {enumeratorRisk.length > 0 && (
         <div className="space-y-2">
           <h3 className="font-semibold text-gray-800">Enumerator Risk Ranking</h3>
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 scrollable-table">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-2 px-3 font-medium text-gray-600">Enumerator ID</th>
                   <th className="text-right py-2 px-3 font-medium text-gray-600">Surveys</th>
