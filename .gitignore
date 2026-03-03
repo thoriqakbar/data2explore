@@ -21,13 +21,35 @@ workspace/
 
 # Claude Code (machine-local)
 .claude/
+CLAUDE.md
+DECISIONS.md
 
 # Runtime output files
 *.d2e-profile.json
 *.d2e-summary.json
+*.d2e-performance.json
 samples/check_output/
 samples/tmp-check-output/
 *.d2e-checks/
+
+# Internal docs (keep screenshots for README)
+docs/*.md
+docs/plans/
+
+# Generated sample outputs (keep only source data + mapping)
+samples/profile_output.json
+samples/summary_output.json
+samples/partial_mapping.json
+samples/sample_survey_manifest.json
+samples/trainee_characteristics.dta
+samples/trainee_rct.dta
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# pytest cache
+.pytest_cache/
 
 # OS / editor
 .DS_Store

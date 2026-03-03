@@ -116,7 +116,7 @@ def _write_summary_sheet(wb: Workbook, data: dict) -> None:
     _autosize(ws, min_width=12)
 
 
-# ── Sheet 2: Flags ──────────────────────────────────────────────────
+# ── Flag columns & headers (shared by enumerator sheets) ──────────
 
 _FLAG_COLUMNS = [
     "check_id", "check_name", "severity", "status", "id", "enumerator_id",
@@ -128,44 +128,6 @@ _FLAG_HEADERS = [
     "Check ID", "Check Name", "Severity", "Status", "ID", "Enumerator",
     "Survey Date", "Column", "Value", "Rule", "Message", "Run Date",
 ]
-
-
-def _write_flags_sheet(wb: Workbook, flags: list[dict]) -> None:
-    ws = wb.create_sheet("Flags")
-
-    # Header row
-    _header_row(ws, 1, _FLAG_HEADERS)
-    ws.freeze_panes = "A2"
-
-    for i, flag in enumerate(flags, start=2):
-        for j, key in enumerate(_FLAG_COLUMNS, start=1):
-            cell = ws.cell(row=i, column=j, value=flag.get(key, ""))
-            # Conditional row fill by severity
-            sev_lower = flag.get("severity", "").lower()
-            if sev_lower == "critical":
-                cell.fill = _FILL_CRITICAL
-            elif sev_lower == "warning":
-                cell.fill = _FILL_WARNING
-
-    # Auto-filter over data range
-    if flags:
-        last_col = get_column_letter(len(_FLAG_HEADERS))
-        ws.auto_filter.ref = f"A1:{last_col}{len(flags) + 1}"
-
-    _autosize(ws)
-
-
-# ── Sheet 3: Action Sheet ──────────────────────────────────────────
-
-def _write_action_sheet(
-    wb: Workbook,
-    active_flags: list[dict],
-    suppressed_flags: list[dict] | None = None,
-    decisions: dict | None = None,
-) -> None:
-    """All flags (active + resolved) with Status/Note pre-filled from decisions."""
-    ws = wb.create_sheet("Action Sheet")
-    _populate_action_sheet(ws, active_flags, suppressed_flags, decisions)
 
 
 def _populate_action_sheet(

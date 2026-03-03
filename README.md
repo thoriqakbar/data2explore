@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/thoriqakbar/data2explore/releases"><img src="https://img.shields.io/github/v/release/thoriqakbar/data2explore?style=flat-square" alt="Release" /></a>
+  <img src="https://img.shields.io/badge/version-0.1.0-blue?style=flat-square" alt="Version 0.1.0" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/platform-Windows-0078D6?style=flat-square&logo=windows" alt="Windows" />
   <img src="https://img.shields.io/badge/python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+" />
