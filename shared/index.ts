@@ -57,6 +57,7 @@ export interface FlagRow {
   status: string;
   id: string;
   enumerator_id: string;
+  survey_date: string;
   column_name: string;
   observed_value: string;
   rule_reference: string;

@@ -51,8 +51,8 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
   const preEnumeratorFlags = useMemo(() => {
     return allFlags
       .filter((flag) => severityFilter === "all" || flag.severity.toLowerCase() === severityFilter)
-      .filter((flag) => !dateRange.from || toRunDate(flag.created_at) >= dateRange.from)
-      .filter((flag) => !dateRange.to || toRunDate(flag.created_at) <= dateRange.to);
+      .filter((flag) => !flag.survey_date || !dateRange.from || flag.survey_date >= dateRange.from)
+      .filter((flag) => !flag.survey_date || !dateRange.to || flag.survey_date <= dateRange.to);
   }, [allFlags, severityFilter, dateRange]);
 
   const enumerators = useMemo(
@@ -324,7 +324,7 @@ export function DataQualityTab({ checkResult, onExportFlags, initialEnumerator, 
 
             <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-600">
               <span>
-                Showing {filteredFlags.length} of {totalUnfilteredFlags} flags. Date filter uses run timestamp from `created_at`.
+                Showing {filteredFlags.length} of {totalUnfilteredFlags} flags. Date filter uses survey interview date. Flags without a date are always shown.
               </span>
               <div className="flex gap-2">
                 {filtersActive && (

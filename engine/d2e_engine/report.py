@@ -124,13 +124,13 @@ def _write_summary_sheet(wb: Workbook, data: dict) -> None:
 
 _FLAG_COLUMNS = [
     "check_id", "check_name", "severity", "status", "id", "enumerator_id",
-    "column_name", "observed_value", "rule_reference", "message",
+    "survey_date", "column_name", "observed_value", "rule_reference", "message",
     "created_at",
 ]
 
 _FLAG_HEADERS = [
     "Check ID", "Check Name", "Severity", "Status", "ID", "Enumerator",
-    "Column", "Value", "Rule", "Message", "Date",
+    "Survey Date", "Column", "Value", "Rule", "Message", "Run Date",
 ]
 
 
