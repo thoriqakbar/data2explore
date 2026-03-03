@@ -54,3 +54,13 @@ class TestCHK001DuplicateId:
         flags = run(simple_df, base_mapping, base_config, fixed_run_id)
         assert len(flags) == 1
         assert flags[0].observed_value == "R001"
+
+    def test_single_duplicate_has_survey_date(self, base_mapping, base_config, fixed_run_id):
+        df = pd.DataFrame({
+            "resp_id": ["R1", "R2", "R1"],
+            "enum_id": ["E1", "E1", "E2"],
+            "date": ["2025-01-10", "2025-01-11", "2025-01-12"],
+        })
+        flags = run(df, base_mapping, base_config, fixed_run_id)
+        assert len(flags) == 1
+        assert flags[0].survey_date == "2025-01-10"
