@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from d2e_engine.checks.base import FlagRow, build_flag_row
+from d2e_engine.checks.base import FlagRow, build_flag_row, fmt_survey_date
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ def run(
         return []
 
     enum_col = mapping.get("enumerator_id", "")
+    date_col = mapping.get("survey_date", "")
 
     # Find values that appear more than once (excluding NaN)
     counts = df[id_col].value_counts()
@@ -49,6 +50,7 @@ def run(
                 severity=SEVERITY,
                 id=val,
                 enumerator_id=first_row.get(enum_col, "") if enum_col else "",
+                survey_date=fmt_survey_date(first_row.get(date_col, "")) if date_col and date_col in df.columns else "",
                 column_name=id_col,
                 observed_value=val,
                 rule_reference="id appears >1 time",

@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from d2e_engine.checks.base import FlagRow, build_flag_row
+from d2e_engine.checks.base import FlagRow, build_flag_row, fmt_survey_date
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,7 @@ def run(
 
     id_col = mapping.get("id", "")
     enum_col = mapping.get("enumerator_id", "")
+    date_col = mapping.get("survey_date", "")
 
     # Compute median & MAD from valid positive durations
     valid = duration_series.dropna()
@@ -133,6 +134,7 @@ def run(
                 severity=severity,
                 id=row_data.get(id_col, "") if id_col and id_col in df.columns else "",
                 enumerator_id=row_data.get(enum_col, "") if enum_col and enum_col in df.columns else "",
+                survey_date=fmt_survey_date(row_data.get(date_col, "")) if date_col and date_col in df.columns else "",
                 column_name=col_label,
                 observed_value=f"{num:.1f}",
                 rule_reference=f"duration_{subtype}",
