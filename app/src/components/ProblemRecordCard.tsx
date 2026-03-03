@@ -1,12 +1,16 @@
+import { useState } from "react";
 import type { FlagRow } from "../../../shared/index";
 import type { ProblemRecordGroup } from "./results/problemReview";
+import { ResolveDialog } from "./ResolveDialog";
 
 interface Props {
   group: ProblemRecordGroup;
-  onResolveFlags?: (flags: FlagRow[]) => void;
+  onResolveFlags?: (flags: FlagRow[], reason: string, note: string) => void;
 }
 
 export function ProblemRecordCard({ group, onResolveFlags }: Props) {
+  const [resolvingFlag, setResolvingFlag] = useState<FlagRow | null>(null);
+
   return (
     <div className="border border-gray-200 rounded-lg bg-white">
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-3">
@@ -50,7 +54,7 @@ export function ProblemRecordCard({ group, onResolveFlags }: Props) {
                 </p>
                 {onResolveFlags && (
                   <button
-                    onClick={() => onResolveFlags([flag])}
+                    onClick={() => setResolvingFlag(flag)}
                     className="px-2 py-0.5 text-[11px] font-medium rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors flex-shrink-0"
                     title={`Resolve flag for record ${flag.id || "unknown"}`}
                   >
@@ -62,6 +66,16 @@ export function ProblemRecordCard({ group, onResolveFlags }: Props) {
           </div>
         ))}
       </div>
+      {resolvingFlag && onResolveFlags && (
+        <ResolveDialog
+          flags={[resolvingFlag]}
+          onConfirm={(reason, note) => {
+            onResolveFlags([resolvingFlag], reason, note);
+            setResolvingFlag(null);
+          }}
+          onCancel={() => setResolvingFlag(null)}
+        />
+      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@ interface Props {
   checkResult: CheckOutput | null | undefined;
   onExportFlags?: (content: string) => void;
   initialEnumerator?: string | null;
-  onResolveFlags?: (flags: FlagRow[]) => void;
+  onResolveFlags?: (flags: FlagRow[], reason: string, note: string) => void;
   onUnresolveFlags?: (flags: FlagRow[]) => void;
   onImportReviewedCsv?: () => void;
   onExportDofile?: () => void;

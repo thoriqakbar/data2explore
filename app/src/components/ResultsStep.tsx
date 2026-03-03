@@ -23,7 +23,7 @@ interface Props {
   onExportReport?: () => void;
   onExportFlags?: (content: string) => void;
   exporting?: boolean;
-  onResolveFlags?: (flags: FlagRow[]) => void;
+  onResolveFlags?: (flags: FlagRow[], reason: string, note: string) => void;
   onUnresolveFlags?: (flags: FlagRow[]) => void;
   onImportReviewedCsv?: () => void;
   onExportDofile?: () => void;

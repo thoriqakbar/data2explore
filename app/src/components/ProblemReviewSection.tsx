@@ -2,18 +2,20 @@ import { useState } from "react";
 import type { FlagRow } from "../../../shared/index";
 import type { ProblemSection } from "./results/problemReview";
 import { ProblemRecordCard } from "./ProblemRecordCard";
+import { ResolveDialog } from "./ResolveDialog";
 
 const INITIAL_VISIBLE_RECORDS = 10;
 
 interface Props {
   section: ProblemSection;
   defaultExpanded?: boolean;
-  onResolveFlags?: (flags: FlagRow[]) => void;
+  onResolveFlags?: (flags: FlagRow[], reason: string, note: string) => void;
 }
 
 export function ProblemReviewSection({ section, defaultExpanded = false, onResolveFlags }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [showAll, setShowAll] = useState(false);
+  const [resolvingAll, setResolvingAll] = useState(false);
 
   const visibleRecords = showAll
     ? section.records
@@ -73,10 +75,7 @@ export function ProblemReviewSection({ section, defaultExpanded = false, onResol
             )}
             {onResolveFlags && (
               <button
-                onClick={() => {
-                  const allFlags = section.records.flatMap(r => r.flags);
-                  onResolveFlags(allFlags);
-                }}
+                onClick={() => setResolvingAll(true)}
                 className="px-3 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
               >
                 Resolve All ({section.total_flags})
@@ -107,6 +106,16 @@ export function ProblemReviewSection({ section, defaultExpanded = false, onResol
             </button>
           )}
         </div>
+      )}
+      {resolvingAll && onResolveFlags && (
+        <ResolveDialog
+          flags={section.records.flatMap(r => r.flags)}
+          onConfirm={(reason, note) => {
+            onResolveFlags(section.records.flatMap(r => r.flags), reason, note);
+            setResolvingAll(false);
+          }}
+          onCancel={() => setResolvingAll(false)}
+        />
       )}
     </div>
   );
