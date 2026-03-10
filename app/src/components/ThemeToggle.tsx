@@ -5,7 +5,7 @@ function getInitialTheme(): "light" | "dark" {
     const stored = localStorage.getItem("d2e-theme");
     if (stored === "dark" || stored === "light") return stored;
   } catch { /* localStorage unavailable */ }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 export function ThemeToggle() {
