@@ -26,6 +26,7 @@ import type { Phase } from "./components/RunningStep";
 import { ResultsStep } from "./components/ResultsStep";
 import { ErrorBanner, classifyError } from "./components/ErrorBanner";
 import { StepPanel } from "./components/StepPanel";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { parseReviewedCsv } from "./utils/csvDecisionParser";
 
 type Step = "import" | "mapping" | "rules" | "running" | "results";
@@ -939,12 +940,15 @@ export function App() {
     <main className="app-card max-w-3xl mx-auto my-8 rounded-2xl font-sans">
       <div className="sticky top-0 z-20 app-card-header px-6 pt-6 pb-0 rounded-t-2xl">
         <div className="flex items-center justify-between mb-4">
-          <img src={headerImg} alt="data2explore" className="h-10" />
-          <span className="text-[11px] text-slate-400 inline-flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-indigo-400">
-              <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z" clipRule="evenodd" />
-            </svg>
-            Local only
+          <img src={headerImg} alt="data2explore" className="h-10 header-logo" />
+          <span className="inline-flex items-center gap-2">
+            <ThemeToggle />
+            <span className="text-[11px] text-slate-400 inline-flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-indigo-400">
+                <path fillRule="evenodd" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V7H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-.5V4.5A3.5 3.5 0 0 0 8 1Zm2 6V4.5a2 2 0 1 0-4 0V7h4Z" clipRule="evenodd" />
+              </svg>
+              Local only
+            </span>
           </span>
         </div>
         <Stepper currentStep={step} />
@@ -1064,7 +1068,7 @@ export function App() {
       </div>
 
       {undoToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-slate-800 text-white rounded-lg text-sm flex items-center gap-4 shadow-lg max-w-md">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-slate-800 text-white rounded-lg text-sm flex items-center gap-4 shadow-lg max-w-md undo-toast">
           <span>{undoToast.message}</span>
           <button
             onClick={handleUndoResolve}
